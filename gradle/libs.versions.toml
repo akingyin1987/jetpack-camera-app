@@ -3,18 +3,24 @@
 compileSdk = "35"
 minSdk = "21"
 targetSdk = "35"
-composeCompiler = "1.5.14"
+composeCompiler = "1.5.15"
 
 # Used below in dependency definitions
 # Compose and Accompanist versions are linked
 # See https://github.com/google/accompanist?tab=readme-ov-file#compose-versions
-composeBom = "2024.11.00"
+composeBom = "2025.01.00"
+
+
+
+
 accompanist = "0.36.0"
 # kotlinPlugin and composeCompiler are linked
 # See https://developer.android.com/jetpack/androidx/releases/compose-kotlin
-kotlinPlugin = "1.9.24"
-androidGradlePlugin = "8.7.3"
+kotlinPlugin = "2.0.21"
+androidGradlePlugin = "8.8.0"
 protobufPlugin = "0.9.4"
+ksp ="2.0.21-1.0.28"
+
 
 androidxActivityCompose = "1.9.3"
 androidxAppCompat = "1.7.0"
@@ -37,10 +43,10 @@ androidxTracing = "1.2.0"
 cmake = "3.22.1"
 kotlinxAtomicfu = "0.23.2"
 kotlinxCoroutines = "1.9.0"
-hilt = "2.52"
+hilt = "2.54"
 junit = "4.13.2"
-mockitoCore = "5.6.0"
-protobuf = "3.25.2"
+mockitoCore = "5.7.0"
+protobuf = "4.26.1"
 robolectric = "4.14"
 truth = "1.4.2"
 
@@ -98,3 +104,5 @@ dagger-hilt-android =  { id = "com.google.dagger.hilt.android", version.ref = "h
 google-protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlinPlugin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlinPlugin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlinPlugin" }
+ksp ={id = "com.google.devtools.ksp",version.ref="ksp"}

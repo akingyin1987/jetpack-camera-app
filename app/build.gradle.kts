@@ -17,7 +17,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    //alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.dagger.hilt.android)
 }
 
@@ -79,19 +81,19 @@ android {
     }
     @Suppress("UnstableApiUsage")
     testOptions {
-        managedDevices {
-            localDevices {
-                create("pixel2Api28") {
-                    device = "Pixel 2"
-                    apiLevel = 28
-                }
-                create("pixel8Api34") {
-                    device = "Pixel 8"
-                    apiLevel = 34
-                    systemImageSource = "aosp_atd"
-                }
-            }
-        }
+//        managedDevices {
+//            localDevices {
+//                create("pixel2Api28") {
+//                    device = "Pixel 2"
+//                    apiLevel = 28
+//                }
+//                create("pixel8Api34") {
+//                    device = "Pixel 8"
+//                    apiLevel = 34
+//                    systemImageSource = "aosp_atd"
+//                }
+//            }
+//        }
     }
 
     kotlinOptions {
@@ -138,7 +140,7 @@ dependencies {
 
     // Hilt
     implementation(libs.dagger.hilt.android)
-    kapt(libs.dagger.hilt.compiler)
+    ksp(libs.dagger.hilt.compiler)
 
     // Accompanist - Permissions
     implementation(libs.accompanist.permissions)
@@ -164,6 +166,6 @@ dependencies {
 }
 
 // Allow references to generated code
-kapt {
-    correctErrorTypes = true
-}
+//kapt {
+//    correctErrorTypes = true
+//}

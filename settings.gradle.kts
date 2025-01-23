@@ -16,6 +16,9 @@
 
 pluginManagement {
     repositories {
+	 maven {setUrl("https://mirrors.huaweicloud.com/repository/maven")}
+
+        maven {setUrl("https://maven.scijava.org/content/repositories/public")}
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -25,6 +28,9 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+	 maven {setUrl("https://mirrors.huaweicloud.com/repository/maven")}
+
+        maven {setUrl("https://maven.scijava.org/content/repositories/public")}
         maven {
             setUrl("https://androidx.dev/snapshots/builds/12696077/artifacts/repository")
         }
