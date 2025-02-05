@@ -47,6 +47,7 @@ class PermissionsViewModel @AssistedInject constructor(
     private val permissionQueue = mutableListOf<PermissionEnum>()
 
     init {
+        //将当前权限转成可视化UI对象
         permissionQueue.addAll(getRequestablePermissions(permissionStates))
     }
 
@@ -64,6 +65,7 @@ class PermissionsViewModel @AssistedInject constructor(
 
     fun dismissPermission() {
         if (permissionQueue.isNotEmpty()) {
+            //移除当前权限，继续下一个请求
             permissionQueue.ktRemoveFirst()
         }
         _permissionsUiState.update {
@@ -90,10 +92,9 @@ fun getRequestablePermissions(
             unGrantedPermissions.add(PermissionEnum.CAMERA)
         }
         // audio is optional
-        else if ((!permission.status.shouldShowRationale && !permission.status.isGranted) &&
-            permission.permission ==
-            Manifest.permission.RECORD_AUDIO
+        else if ((!permission.status.shouldShowRationale && !permission.status.isGranted) && permission.permission == Manifest.permission.RECORD_AUDIO
         ) {
+            //当前为录音权限，并且没有被拒绝过，则加入到请求队列中
             unGrantedPermissions.add(PermissionEnum.RECORD_AUDIO)
         }
     }

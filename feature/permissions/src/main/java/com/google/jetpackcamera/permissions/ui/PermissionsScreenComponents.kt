@@ -69,8 +69,10 @@ fun PermissionTemplate(
         modifier = modifier,
         onRequestPermission = {
             if (permissionState.status.shouldShowRationale) {
+                // 打开系统设置页面，让用户手动开启权限
                 onOpenAppSettings()
             } else {
+                // 直接请求权限
                 onRequestPermission()
             }
         },
@@ -200,6 +202,7 @@ fun PermissionButtonSection(
     modifier: Modifier = Modifier,
     onRequestPermission: () -> Unit,
     requestButtonText: String,
+    //跳过权限请求按钮，可选
     onSkipPermission: (() -> Unit)?
 ) {
     Box(modifier = modifier) {

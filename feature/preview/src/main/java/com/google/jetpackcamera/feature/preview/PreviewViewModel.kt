@@ -320,7 +320,7 @@ class PreviewViewModel @AssistedInject constructor(
     private fun getSettingsDiff(
         oldCameraAppSettings: CameraAppSettings,
         newCameraAppSettings: CameraAppSettings
-    ): Map<KProperty<Any?>, Any?> = buildMap<KProperty<Any?>, Any?> {
+    ): Map<KProperty<Any?>, Any?> = buildMap {
         CameraAppSettings::class.memberProperties.forEach { property ->
             if (property.get(oldCameraAppSettings) != property.get(newCameraAppSettings)) {
                 put(property, property.get(newCameraAppSettings))
@@ -929,6 +929,7 @@ class PreviewViewModel @AssistedInject constructor(
 
     @AssistedFactory
     interface Factory {
+
         fun create(previewMode: PreviewMode, isDebugMode: Boolean): PreviewViewModel
     }
 
