@@ -8,7 +8,7 @@ composeCompiler = "1.5.15"
 # Used below in dependency definitions
 # Compose and Accompanist versions are linked
 # See https://github.com/google/accompanist?tab=readme-ov-file#compose-versions
-composeBom = "2025.01.00"
+composeBom = "2025.01.01"
 
 
 
