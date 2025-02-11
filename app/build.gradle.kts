@@ -17,7 +17,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    //alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.dagger.hilt.android)
 }
 
@@ -33,9 +35,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
-
 
     buildTypes {
         getByName("debug") {
@@ -79,24 +79,21 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-
     @Suppress("UnstableApiUsage")
     testOptions {
-        execution = "ANDROIDX_TEST_ORCHESTRATOR"
-
-        managedDevices {
-            localDevices {
-                create("pixel2Api28") {
-                    device = "Pixel 2"
-                    apiLevel = 28
-                }
-                create("pixel8Api34") {
-                    device = "Pixel 8"
-                    apiLevel = 34
-                    systemImageSource = "aosp_atd"
-                }
-            }
-        }
+//        managedDevices {
+//            localDevices {
+//                create("pixel2Api28") {
+//                    device = "Pixel 2"
+//                    apiLevel = 28
+//                }
+//                create("pixel8Api34") {
+//                    device = "Pixel 8"
+//                    apiLevel = 34
+//                    systemImageSource = "aosp_atd"
+//                }
+//            }
+//        }
     }
 
     kotlinOptions {
@@ -137,15 +134,13 @@ dependencies {
     androidTestImplementation(libs.androidx.rules)
     androidTestImplementation(libs.androidx.uiautomator)
     androidTestImplementation(libs.truth)
-    androidTestUtil(libs.androidx.orchestrator)
-
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Hilt
     implementation(libs.dagger.hilt.android)
-    kapt(libs.dagger.hilt.compiler)
+    ksp(libs.dagger.hilt.compiler)
 
     // Accompanist - Permissions
     implementation(libs.accompanist.permissions)
@@ -167,9 +162,10 @@ dependencies {
 
     // benchmark
     implementation(libs.androidx.profileinstaller)
+
 }
 
 // Allow references to generated code
-kapt {
-    correctErrorTypes = true
-}
+//kapt {
+//    correctErrorTypes = true
+//}
