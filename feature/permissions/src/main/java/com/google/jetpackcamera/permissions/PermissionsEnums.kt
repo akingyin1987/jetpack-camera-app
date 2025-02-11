@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
+import com.google.jetpackcamera.permissions.ui.CAMERA_PERMISSION_BUTTON
+import com.google.jetpackcamera.permissions.ui.RECORD_AUDIO_PERMISSION_BUTTON
 
 const val CAMERA_PERMISSION = "android.permission.CAMERA"
 const val AUDIO_RECORD_PERMISSION = "android.permission.RECORD_AUDIO"
@@ -70,6 +72,8 @@ sealed interface PermissionInfoProvider {
      * @return 如果权限是可选的，则返回 true；否则返回 false
      */
     fun isOptional(): Boolean
+
+    fun getTestTag(): String
 
     /**
      * 获取权限图标的资源ID。
@@ -137,6 +141,9 @@ enum class PermissionEnum : PermissionInfoProvider {
 
         override fun getPermissionTitleResId(): Int = R.string.camera_permission_screen_title
 
+
+        override fun getTestTag(): String = CAMERA_PERMISSION_BUTTON
+
         override fun getPermissionBodyTextResId(): Int =
             R.string.camera_permission_required_rationale
 
@@ -162,6 +169,8 @@ enum class PermissionEnum : PermissionInfoProvider {
             R.string.microphone_permission_required_rationale
 
         override fun getRationaleBodyTextResId(): Int? = null
+
+        override fun getTestTag(): String =RECORD_AUDIO_PERMISSION_BUTTON
 
         override fun getIconAccessibilityTextResId(): Int =
             R.string.microphone_permission_accessibility_text

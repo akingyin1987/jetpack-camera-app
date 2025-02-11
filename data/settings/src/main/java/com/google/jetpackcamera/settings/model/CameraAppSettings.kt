@@ -28,6 +28,7 @@ val DEFAULT_HDR_IMAGE_OUTPUT = ImageOutputFormat.JPEG_ULTRA_HDR
 
 // 相机应用设置的数据类
 data class CameraAppSettings(
+    val captureMode: CaptureMode = CaptureMode.STANDARD,
     // 摄像头朝向：默认为后置摄像头
     val cameraLensFacing: LensFacing = LensFacing.BACK,
 
