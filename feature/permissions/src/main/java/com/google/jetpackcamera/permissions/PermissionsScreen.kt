@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 package com.google.jetpackcamera.permissions
-
 import android.Manifest
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,6 +32,8 @@ import com.google.jetpackcamera.permissions.ui.PermissionTemplate
 
 private const val TAG = "PermissionsScreen"
 
+
+//权限相关界面
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionsScreen(
@@ -40,6 +41,7 @@ fun PermissionsScreen(
     onAllPermissionsGranted: () -> Unit,
     openAppSettings: () -> Unit
 ) {
+    //当前需要验证的权限列表，根据是否需要音频权限动态生成
     val permissionStates = rememberMultiplePermissionsState(
         permissions = if (shouldRequestAudioPermission) {
             listOf(
@@ -71,6 +73,7 @@ fun PermissionsScreen(
     onAllPermissionsGranted: () -> Unit,
     openAppSettings: () -> Unit,
     permissionStates: MultiplePermissionsState,
+    // 通过当前权限状态创建ViewModel，ViewModel会监听当前权限的状态变化
     viewModel: PermissionsViewModel = hiltViewModel<
         PermissionsViewModel,
         PermissionsViewModel.Factory
@@ -80,13 +83,14 @@ fun PermissionsScreen(
     val permissionsUiState: PermissionsUiState by viewModel.permissionsUiState.collectAsState()
     LaunchedEffect(permissionsUiState) {
         if (permissionsUiState is PermissionsUiState.AllPermissionsGranted) {
+            //所有权限都已授予，执行回调
             onAllPermissionsGranted()
         }
     }
 
     if (permissionsUiState is PermissionsUiState.PermissionsNeeded) {
-        val permissionEnum =
-            (permissionsUiState as PermissionsUiState.PermissionsNeeded).currentPermission
+        //当前需要请求的权限枚举
+        val permissionEnum = (permissionsUiState as PermissionsUiState.PermissionsNeeded).currentPermission
         val currentPermissionState =
             rememberPermissionState(
                 permission = permissionEnum.getPermission()
@@ -97,8 +101,10 @@ fun PermissionsScreen(
             onResult = { permissionGranted ->
                 if (permissionGranted) {
                     // remove from list
+                    //当前已授权的权限从列表中移除，继续请求下一个权限
                     viewModel.dismissPermission()
                 } else if (permissionEnum.isOptional()) {
+                    //当前权限是可选的，则直接从列表中移除
                     viewModel.dismissPermission()
                 }
             }
@@ -106,12 +112,18 @@ fun PermissionsScreen(
 
         PermissionTemplate(
             modifier = modifier,
+            //当前需要请求的权限枚举
             permissionEnum = permissionEnum,
+            //当前权限的状态对象，用于控制请求权限的UI组件
             permissionState = currentPermissionState,
+            //当前权限是否允许被跳过
             onSkipPermission = when (permissionEnum) {
-                // todo: a prettier navigation to app settings.
                 PermissionEnum.CAMERA -> null
-                // todo: skip permission button functionality. currently need to go through the
+                PermissionEnum.RECORD_AUDIO->{
+                    {
+                        viewModel.dismissPermission()
+                    }
+                }
                 // prompt to skip
                 else -> null // permissionsViewModel::dismissPermission
             },

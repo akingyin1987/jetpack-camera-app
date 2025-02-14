@@ -17,5 +17,5 @@ package com.google.jetpackcamera.permissions
 
 sealed interface PermissionsUiState {
     data class PermissionsNeeded(val currentPermission: PermissionEnum) : PermissionsUiState
-    object AllPermissionsGranted : PermissionsUiState
+    data object AllPermissionsGranted : PermissionsUiState
 }
