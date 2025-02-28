@@ -16,12 +16,6 @@
 package com.google.jetpackcamera.ui
 
 import android.Manifest
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.EaseIn
-import androidx.compose.animation.core.EaseOut
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -83,7 +77,9 @@ private fun JetpackCameraNavHost(
                 shouldRequestAudioPermission = previewMode is PreviewMode.StandardMode,
                 onAllPermissionsGranted = {
                     // Pop off the permissions screen
+                    //当前权限通过，直接跳转到预览界面
                     navController.navigate(PREVIEW_ROUTE) {
+                        //将当前界面弹出栈，并包含之前的界面
                         popUpTo(PERMISSIONS_ROUTE) {
                             inclusive = true
                         }
@@ -93,7 +89,8 @@ private fun JetpackCameraNavHost(
             )
         }
 
-        composable(route = PREVIEW_ROUTE, enterTransition = { fadeIn() }) {
+        composable(PREVIEW_ROUTE) {
+            //预览，当前相机权限检查，如果未通过则跳转到权限界面
             val permissionStates = rememberMultiplePermissionsState(
                 permissions = listOf(
                     Manifest.permission.CAMERA,
@@ -101,6 +98,7 @@ private fun JetpackCameraNavHost(
                 )
             )
             // Automatically navigate to permissions screen when camera permission revoked
+            //只检查 相机权限，如果未通过则跳转到权限界面
             LaunchedEffect(key1 = permissionStates.permissions[0].status) {
                 if (!permissionStates.permissions[0].status.isGranted) {
                     // Pop off the preview screen
@@ -119,23 +117,7 @@ private fun JetpackCameraNavHost(
                 isDebugMode = isDebugMode
             )
         }
-        composable(
-            route = SETTINGS_ROUTE,
-            enterTransition = {
-                fadeIn(
-                    animationSpec = tween(easing = LinearEasing)
-                ) + slideIntoContainer(
-                    animationSpec = tween(easing = EaseIn),
-                    towards = AnimatedContentTransitionScope.SlideDirection.Start
-                )
-            },
-            exitTransition = {
-                slideOutOfContainer(
-                    animationSpec = tween(easing = EaseOut),
-                    towards = AnimatedContentTransitionScope.SlideDirection.End
-                )
-            }
-        ) {
+        composable(SETTINGS_ROUTE) {
             SettingsScreen(
                 versionInfo = VersionInfoHolder(
                     versionName = BuildConfig.VERSION_NAME,

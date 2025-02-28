@@ -95,7 +95,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // 用于表示一个将来会完成的延迟操作, 用于在捕获第一帧时完成。
         var firstFrameComplete: CompletableDeferred<Unit>? = null
+
         if (Trace.isEnabled()) {
             firstFrameComplete = CompletableDeferred()
             // start trace between app starting and the earliest possible completed capture
@@ -131,7 +133,9 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .semantics {
+                                    //允许开发者将测试标签（testTags）映射到无障碍服务中的资源ID（resource-id）
                                     testTagsAsResourceId = true
+                                   // testTag = "MainActivity"
                                 },
                             color = MaterialTheme.colorScheme.background
                         ) {
@@ -284,6 +288,7 @@ private fun Int.toColorModeString(): String {
 }
 
 /**
+ * 进入到APP 设置界面
  * Open the app settings when necessary. I.e. to enable permissions that have been denied by a user
  */
 private fun Activity.openAppSettings() {

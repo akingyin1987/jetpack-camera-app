@@ -24,12 +24,14 @@ import android.net.Uri
 sealed interface PreviewMode {
     /**
      * The default mode for the app.
+     * 默认模式，
      */
     data class StandardMode(
         val onImageCapture: (PreviewViewModel.ImageCaptureEvent) -> Unit
     ) : PreviewMode
 
     /**
+     * 外部图像捕获模式，外部视频捕获模式和外部多图像捕获模式的区别在于，它们都是在外部意图下启动的。
      * Under this mode, the app is launched by an external intent to capture one image.
      */
     data class ExternalImageCaptureMode(
@@ -38,6 +40,7 @@ sealed interface PreviewMode {
     ) : PreviewMode
 
     /**
+     * 外部视频捕获模式，
      * Under this mode, the app is launched by an external intent to capture a video.
      */
     data class ExternalVideoCaptureMode(
@@ -47,6 +50,7 @@ sealed interface PreviewMode {
 
     /**
      * Under this mode, the app is launched by an external intent to capture multiple images.
+     * 外部多图像捕获模式，在外部意图下启动以捕获多个图像。
      */
     data class ExternalMultipleImageCaptureMode(
         val imageCaptureUris: List<Uri>?,
