@@ -15,15 +15,22 @@
  */
 package com.google.jetpackcamera.feature.preview
 
+import android.util.Range
 import android.util.Size
 import com.google.jetpackcamera.core.camera.VideoRecordingState
+import com.google.jetpackcamera.feature.preview.ui.ImageWellUiState
 import com.google.jetpackcamera.feature.preview.ui.SnackbarData
 import com.google.jetpackcamera.feature.preview.ui.ToastMessage
 import com.google.jetpackcamera.settings.model.CameraAppSettings
+import com.google.jetpackcamera.settings.model.CaptureMode
+import com.google.jetpackcamera.settings.model.DynamicRange
 import com.google.jetpackcamera.settings.model.FlashMode
+import com.google.jetpackcamera.settings.model.ImageOutputFormat
 import com.google.jetpackcamera.settings.model.StabilizationMode
 import com.google.jetpackcamera.settings.model.SystemConstraints
 import com.google.jetpackcamera.settings.model.VideoQuality
+import java.util.LinkedList
+import java.util.Queue
 
 /**
  * Defines the current state of the [PreviewScreen].
@@ -35,17 +42,15 @@ sealed interface PreviewUiState {
         // "quick" settings
         val currentCameraSettings: CameraAppSettings = CameraAppSettings(),
         val systemConstraints: SystemConstraints = SystemConstraints(),
-        val zoomScale: Float = 1f,
         val videoRecordingState: VideoRecordingState = VideoRecordingState.Inactive(),
         val quickSettingsIsOpen: Boolean = false,
-        // val audioMuted: Boolean = false,
 
         // todo: remove after implementing post capture screen
         val toastMessageToShow: ToastMessage? = null,
-        val snackBarToShow: SnackbarData? = null,
+        val snackBarQueue: Queue<SnackbarData> = LinkedList(),
         val lastBlinkTimeStamp: Long = 0,
         val previewMode: PreviewMode = PreviewMode.StandardMode {},
-        val captureModeToggleUiState: CaptureModeToggleUiState = CaptureModeToggleUiState.Invisible,
+        val captureModeToggleUiState: CaptureModeUiState = CaptureModeUiState.Unavailable,
         val sessionFirstFrameTimestamp: Long = 0L,
         val currentPhysicalCameraId: String? = null,
         val currentLogicalCameraId: String? = null,
@@ -53,11 +58,15 @@ sealed interface PreviewUiState {
         val stabilizationUiState: StabilizationUiState = StabilizationUiState.Disabled,
         val flashModeUiState: FlashModeUiState = FlashModeUiState.Unavailable,
         val videoQuality: VideoQuality = VideoQuality.UNSPECIFIED,
-        val audioUiState: AudioUiState = AudioUiState.Disabled
+        val audioUiState: AudioUiState = AudioUiState.Disabled,
+        val elapsedTimeUiState: ElapsedTimeUiState = ElapsedTimeUiState.Unavailable,
+        val captureButtonUiState: CaptureButtonUiState = CaptureButtonUiState.Unavailable,
+        val imageWellUiState: ImageWellUiState = ImageWellUiState.Unavailable,
+        val captureModeUiState: CaptureModeUiState = CaptureModeUiState.Unavailable,
+        val zoomUiState: ZoomUiState = ZoomUiState.Unavailable,
+        val hdrUiState: HdrUiState = HdrUiState.Unavailable
     ) : PreviewUiState
 }
-
-// todo(kc): add ElapsedTimeUiState class
 
 data class DebugUiState(
     val cameraPropertiesJSON: String = "",
@@ -65,7 +74,39 @@ data class DebugUiState(
     val isDebugMode: Boolean = false,
     val isDebugOverlayOpen: Boolean = false
 )
+val DEFAULT_CAPTURE_BUTTON_STATE = CaptureButtonUiState.Enabled.Idle(CaptureMode.STANDARD)
 
+sealed interface CaptureButtonUiState {
+    data object Unavailable : CaptureButtonUiState
+    sealed interface Enabled : CaptureButtonUiState {
+        data class Idle(val captureMode: CaptureMode) : Enabled
+
+        sealed interface Recording : Enabled {
+            data object PressedRecording : Recording
+            data object LockedRecording : Recording
+        }
+    }
+}
+
+sealed interface ElapsedTimeUiState {
+    data object Unavailable : ElapsedTimeUiState
+    data class Enabled(val elapsedTimeNanos: Long) : ElapsedTimeUiState
+}
+sealed interface HdrUiState {
+    data object Unavailable : HdrUiState
+    data class Available(
+        val currentImageOutputFormat: ImageOutputFormat,
+        val currentDynamicRange: DynamicRange
+    ) : HdrUiState
+}
+sealed interface ZoomUiState {
+    data object Unavailable : ZoomUiState
+    data class Enabled(
+        val primaryZoomRange: Range<Float>,
+        val primaryZoomRatio: Float? = null,
+        val primaryLinearZoom: Float? = null
+    ) : ZoomUiState
+}
 sealed interface AudioUiState {
     val amplitude: Double
 
@@ -101,9 +142,7 @@ sealed interface StabilizationUiState {
         }
     }
 
-    data class Auto(
-        override val stabilizationMode: StabilizationMode
-    ) : Enabled {
+    data class Auto(override val stabilizationMode: StabilizationMode) : Enabled {
         override val active = true
     }
 }

@@ -16,6 +16,13 @@
 package com.google.jetpackcamera.ui
 
 import android.Manifest
+import android.os.Build
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -27,12 +34,14 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.jetpackcamera.BuildConfig
+import com.google.jetpackcamera.feature.postcapture.PostCaptureScreen
 import com.google.jetpackcamera.feature.preview.PreviewMode
 import com.google.jetpackcamera.feature.preview.PreviewScreen
 import com.google.jetpackcamera.permissions.PermissionsScreen
 import com.google.jetpackcamera.settings.SettingsScreen
 import com.google.jetpackcamera.settings.VersionInfoHolder
 import com.google.jetpackcamera.ui.Routes.PERMISSIONS_ROUTE
+import com.google.jetpackcamera.ui.Routes.POST_CAPTURE_ROUTE
 import com.google.jetpackcamera.ui.Routes.PREVIEW_ROUTE
 import com.google.jetpackcamera.ui.Routes.SETTINGS_ROUTE
 
@@ -74,12 +83,12 @@ private fun JetpackCameraNavHost(
     ) {
         composable(PERMISSIONS_ROUTE) {
             PermissionsScreen(
+                shouldRequestReadWriteStoragePermission = previewMode is PreviewMode.StandardMode &&
+                    Build.VERSION.SDK_INT <= Build.VERSION_CODES.P,
                 shouldRequestAudioPermission = previewMode is PreviewMode.StandardMode,
                 onAllPermissionsGranted = {
                     // Pop off the permissions screen
-                    //当前权限通过，直接跳转到预览界面
                     navController.navigate(PREVIEW_ROUTE) {
-                        //将当前界面弹出栈，并包含之前的界面
                         popUpTo(PERMISSIONS_ROUTE) {
                             inclusive = true
                         }
@@ -89,16 +98,19 @@ private fun JetpackCameraNavHost(
             )
         }
 
-        composable(PREVIEW_ROUTE) {
-            //预览，当前相机权限检查，如果未通过则跳转到权限界面
+        composable(route = PREVIEW_ROUTE, enterTransition = { fadeIn() }) {
             val permissionStates = rememberMultiplePermissionsState(
-                permissions = listOf(
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.RECORD_AUDIO
-                )
+                permissions =
+                buildList {
+                    add(Manifest.permission.CAMERA)
+                    add(Manifest.permission.RECORD_AUDIO)
+                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                        add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                }
             )
             // Automatically navigate to permissions screen when camera permission revoked
-            //只检查 相机权限，如果未通过则跳转到权限界面
             LaunchedEffect(key1 = permissionStates.permissions[0].status) {
                 if (!permissionStates.permissions[0].status.isGranted) {
                     // Pop off the preview screen
@@ -111,13 +123,30 @@ private fun JetpackCameraNavHost(
             }
             PreviewScreen(
                 onNavigateToSettings = { navController.navigate(SETTINGS_ROUTE) },
+                onNavigateToPostCapture = { navController.navigate(POST_CAPTURE_ROUTE) },
                 onRequestWindowColorMode = onRequestWindowColorMode,
                 onFirstFrameCaptureCompleted = onFirstFrameCaptureCompleted,
                 previewMode = previewMode,
                 isDebugMode = isDebugMode
             )
         }
-        composable(SETTINGS_ROUTE) {
+        composable(
+            route = SETTINGS_ROUTE,
+            enterTransition = {
+                fadeIn(
+                    animationSpec = tween(easing = LinearEasing)
+                ) + slideIntoContainer(
+                    animationSpec = tween(easing = EaseIn),
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    animationSpec = tween(easing = EaseOut),
+                    towards = AnimatedContentTransitionScope.SlideDirection.End
+                )
+            }
+        ) {
             SettingsScreen(
                 versionInfo = VersionInfoHolder(
                     versionName = BuildConfig.VERSION_NAME,
@@ -125,6 +154,12 @@ private fun JetpackCameraNavHost(
                 ),
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        composable(
+            POST_CAPTURE_ROUTE
+        ) {
+            PostCaptureScreen()
         }
     }
 }

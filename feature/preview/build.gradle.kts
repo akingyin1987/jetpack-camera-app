@@ -20,6 +20,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.dagger.hilt.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -84,8 +85,9 @@ android {
 }
 
 dependencies {
-    // Reflect
-    implementation(libs.kotlin.reflect)
+    // Accompanist - Permissions
+    implementation(libs.accompanist.permissions)
+
     // Compose
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
@@ -141,9 +143,10 @@ dependencies {
     implementation(libs.kotlinx.atomicfu)
 
     // Project dependencies
-    implementation(project(":data:settings"))
     implementation(project(":core:camera"))
     implementation(project(":core:common"))
+    implementation(project(":data:media"))
+    implementation(project(":data:settings"))
     testImplementation(project(":core:common"))
 }
 

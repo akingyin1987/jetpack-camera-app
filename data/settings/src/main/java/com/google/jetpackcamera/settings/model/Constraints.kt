@@ -15,11 +15,17 @@
  */
 package com.google.jetpackcamera.settings.model
 
+import android.util.Range
+
 data class SystemConstraints(
     val availableLenses: List<LensFacing> = emptyList(),
     val concurrentCamerasSupported: Boolean = false,
     val perLensConstraints: Map<LensFacing, CameraConstraints> = emptyMap()
 )
+
+inline fun <reified T> SystemConstraints.forDevice(
+    crossinline constraintSelector: (CameraConstraints) -> Iterable<T>
+) = perLensConstraints.values.asSequence().flatMap { constraintSelector(it) }.toSet()
 
 data class CameraConstraints(
     val supportedStabilizationModes: Set<StabilizationMode>,
@@ -29,6 +35,7 @@ data class CameraConstraints(
     val supportedImageFormatsMap: Map<StreamConfig, Set<ImageOutputFormat>>,
     val supportedIlluminants: Set<Illuminant>,
     val supportedFlashModes: Set<FlashMode>,
+    val supportedZoomRange: Range<Float>?,
     val unsupportedStabilizationFpsMap: Map<StabilizationMode, Set<Int>>
 ) {
     val StabilizationMode.unsupportedFpsSet
@@ -64,6 +71,7 @@ val TYPICAL_SYSTEM_CONSTRAINTS =
                         supportedVideoQualitiesMap = emptyMap(),
                         supportedIlluminants = setOf(Illuminant.FLASH_UNIT),
                         supportedFlashModes = setOf(FlashMode.OFF, FlashMode.ON, FlashMode.AUTO),
+                        supportedZoomRange = Range(.5f, 10f),
                         unsupportedStabilizationFpsMap = emptyMap()
                     )
                 )

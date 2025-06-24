@@ -19,108 +19,70 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
+import com.google.jetpackcamera.permissions.ui.CAMERA_PERMISSION_BUTTON
+import com.google.jetpackcamera.permissions.ui.RECORD_AUDIO_PERMISSION_BUTTON
+import com.google.jetpackcamera.permissions.ui.WRITE_EXTERNAL_STORAGE_PERMISSION_BUTTON
 
 const val CAMERA_PERMISSION = "android.permission.CAMERA"
 const val AUDIO_RECORD_PERMISSION = "android.permission.RECORD_AUDIO"
 
+const val READ_EXTERNAL_STORAGE_PERMISSION = "android.permission.READ_EXTERNAL_STORAGE"
+const val WRITE_EXTERNAL_STORAGE_PERMISSION = "android.permission.WRITE_EXTERNAL_STORAGE"
+
 /**
- * // 定义一个密封接口 PermissionInfoProvider，用于提供与权限相关的信息
  * Helper class storing a permission's relevant UI information
  */
 sealed interface PermissionInfoProvider {
-
-    // @Composable 注解表明此方法可以在 Jetpack Compose 中使用，用于返回绘制权限图标的 Painter 对象
     @Composable
     fun getPainter(): Painter {
-        // 从接口的实现中获取图标资源ID
         val iconResId = getDrawableResId()
-        // 从接口的实现中获取矢量图标
         val iconVector = getImageVector()
-        // 使用 require 函数确保图标资源ID和矢量图标中只有一个被设置（非空），否则抛出异常
         require((iconResId == null).xor(iconVector == null)) {
-            "UI 项目应恰好设置 iconResId 或 iconVector 中的一个。"
+            "UI Item should have exactly one of iconResId or iconVector set."
         }
-        // 如果图标资源ID非空，则使用 painterResource 函数创建并返回一个 Painter 对象
-        // 如果图标资源ID为空但矢量图标非空，则使用 rememberVectorPainter 函数创建并返回一个 Painter 对象
-        // !! 操作符在这里是安全的，因为我们已经通过 require 函数确保了至少有一个非空值
         return iconResId?.let { painterResource(it) }
             ?: iconVector?.let {
                 rememberVectorPainter(
                     it
                 )
-            }!!
+            }!! // !! allowed because we've checked null
     }
 
     /**
-     * 获取权限的字符串引用。
-     *
-     * @return 表示权限的字符串
+     * @return the String reference for the permission
      */
     fun getPermission(): String
 
-    /**
-     * 检查该权限是否是可选的。
-     *
-     * @return 如果权限是可选的，则返回 true；否则返回 false
-     */
     fun isOptional(): Boolean
 
-    /**
-     * 获取权限图标的资源ID。
-     *
-     * @return 权限图标的资源ID，如果未设置则返回 null
-     */
+    fun getTestTag(): String
+
     @DrawableRes
     fun getDrawableResId(): Int?
 
-    /**
-     * 获取权限的矢量图标。
-     *
-     * @return 权限的矢量图标，如果未设置则返回 null
-     */
     fun getImageVector(): ImageVector?
 
-    /**
-     * 获取权限标题的字符串资源ID。
-     *
-     * @return 权限标题的字符串资源ID
-     */
     @StringRes
     fun getPermissionTitleResId(): Int
 
-    /**
-     * 获取权限主体文本的字符串资源ID。
-     *
-     * @return 权限主体文本的字符串资源ID
-     */
     @StringRes
     fun getPermissionBodyTextResId(): Int
 
-    /**
-     * 获取权限说明主体文本的字符串资源ID（可选）。
-     *
-     * @return 权限说明主体文本的字符串资源ID，如果未设置则返回 null
-     */
     @StringRes
     fun getRationaleBodyTextResId(): Int?
 
-    /**
-     * 获取图标无障碍文本的字符串资源ID。
-     *
-     * @return 图标无障碍文本的字符串资源ID
-     */
     @StringRes
     fun getIconAccessibilityTextResId(): Int
 }
 
 /**
- * 权限信息提供者。
  * Implementation of [PermissionInfoProvider]
  * Supplies the information needed for a permission's UI screen
  */
@@ -130,6 +92,8 @@ enum class PermissionEnum : PermissionInfoProvider {
         override fun getPermission(): String = CAMERA_PERMISSION
 
         override fun isOptional(): Boolean = false
+
+        override fun getTestTag(): String = CAMERA_PERMISSION_BUTTON
 
         override fun getDrawableResId(): Int? = null
 
@@ -152,6 +116,8 @@ enum class PermissionEnum : PermissionInfoProvider {
 
         override fun isOptional(): Boolean = true
 
+        override fun getTestTag(): String = RECORD_AUDIO_PERMISSION_BUTTON
+
         override fun getDrawableResId(): Int? = null
 
         override fun getImageVector(): ImageVector = Icons.Outlined.Mic
@@ -165,5 +131,27 @@ enum class PermissionEnum : PermissionInfoProvider {
 
         override fun getIconAccessibilityTextResId(): Int =
             R.string.microphone_permission_accessibility_text
+    },
+
+    WRITE_STORAGE {
+        override fun getPermission(): String = WRITE_EXTERNAL_STORAGE_PERMISSION
+
+        override fun isOptional(): Boolean = true
+
+        override fun getTestTag(): String = WRITE_EXTERNAL_STORAGE_PERMISSION_BUTTON
+
+        override fun getDrawableResId(): Int? = null
+
+        override fun getImageVector(): ImageVector = Icons.Outlined.CreateNewFolder
+
+        override fun getPermissionTitleResId(): Int = R.string.write_storage_permission_screen_title
+
+        override fun getPermissionBodyTextResId(): Int =
+            R.string.write_storage_permission_required_rationale
+
+        override fun getRationaleBodyTextResId(): Int? = null
+
+        override fun getIconAccessibilityTextResId(): Int =
+            R.string.write_storage_permission_accessibility_text
     }
 }

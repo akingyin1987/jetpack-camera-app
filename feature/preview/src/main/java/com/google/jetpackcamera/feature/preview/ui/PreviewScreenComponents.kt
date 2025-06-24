@@ -27,20 +27,22 @@ import androidx.camera.viewfinder.compose.MutableCoordinateTransformer
 import androidx.camera.viewfinder.core.ImplementationMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutExpo
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -110,14 +112,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.jetpackcamera.core.camera.VideoRecordingState
 import com.google.jetpackcamera.feature.preview.AudioUiState
+import com.google.jetpackcamera.feature.preview.CaptureModeUiState
+import com.google.jetpackcamera.feature.preview.DisabledReason
+import com.google.jetpackcamera.feature.preview.ElapsedTimeUiState
 import com.google.jetpackcamera.feature.preview.PreviewUiState
 import com.google.jetpackcamera.feature.preview.R
+import com.google.jetpackcamera.feature.preview.SingleSelectableState
 import com.google.jetpackcamera.feature.preview.StabilizationUiState
+import com.google.jetpackcamera.feature.preview.ZoomUiState
 import com.google.jetpackcamera.feature.preview.ui.theme.PreviewPreviewTheme
 import com.google.jetpackcamera.settings.model.AspectRatio
+import com.google.jetpackcamera.settings.model.CameraZoomRatio
+import com.google.jetpackcamera.settings.model.CaptureMode
 import com.google.jetpackcamera.settings.model.LensFacing
 import com.google.jetpackcamera.settings.model.StabilizationMode
 import com.google.jetpackcamera.settings.model.VideoQuality
+import com.google.jetpackcamera.settings.model.ZoomChange
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -129,63 +139,66 @@ private const val TAG = "PreviewScreen"
 private const val BLINK_TIME = 100L
 
 @Composable
-fun ElapsedTimeText(
-    modifier: Modifier = Modifier,
-    videoRecordingState: VideoRecordingState,
-    elapsedNs: Long
-) {
-    AnimatedVisibility(
-        visible = (videoRecordingState is VideoRecordingState.Active),
-        enter = fadeIn(),
-        exit = fadeOut(animationSpec = tween(delayMillis = 1000))
-    ) {
-        Text(
-            modifier = modifier,
-            text = elapsedNs.nanoseconds.toComponents { minutes, seconds, _ ->
-                "%02d:%02d".format(minutes, seconds)
-            },
-            textAlign = TextAlign.Center
-        )
-    }
+fun ElapsedTimeText(modifier: Modifier = Modifier, elapsedTimeUiState: ElapsedTimeUiState.Enabled) {
+    Text(
+        modifier = modifier,
+        text = elapsedTimeUiState.elapsedTimeNanos.nanoseconds
+            .toComponents { minutes, seconds, _ -> "%02d:%02d".format(minutes, seconds) },
+        textAlign = TextAlign.Center
+    )
 }
 
 @Composable
 fun PauseResumeToggleButton(
     modifier: Modifier = Modifier,
     onSetPause: (Boolean) -> Unit,
-    size: Float = 80f,
+    size: Float = 55f,
     currentRecordingState: VideoRecordingState.Active
 ) {
-    Box(
-        modifier = modifier.clickable {
-            onSetPause(currentRecordingState !is VideoRecordingState.Active.Paused)
+    var buttonClicked by remember { mutableStateOf(false) }
+    // animation value for the toggle icon itself
+    val animatedToggleScale by animateFloatAsState(
+        targetValue = if (buttonClicked) 1.1f else 1f, // Scale up to 110%
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        finishedListener = {
+            buttonClicked = false // Reset the trigger
         }
+    )
+    Box(
+        modifier = modifier
     ) {
-        // static circle
-        Canvas(
+        Box(
             modifier = Modifier
-                .align(Alignment.Center),
-            onDraw = {
-                drawCircle(
-                    radius = (size),
-                    color = Color.White
+                .clickable(
+                    onClick = {
+                        buttonClicked = true
+                        onSetPause(currentRecordingState !is VideoRecordingState.Active.Paused)
+                    },
+                    indication = null,
+                    interactionSource = null
                 )
-            }
-        )
-
-        // icon
-        Icon(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size((0.5 * size).dp),
-            tint = Color.Red,
-
-            imageVector = when (currentRecordingState) {
-                is VideoRecordingState.Active.Recording -> Icons.Filled.Pause
-                is VideoRecordingState.Active.Paused -> Icons.Filled.PlayArrow
-            },
-            contentDescription = "pause resume toggle"
-        )
+                .size(size = size.dp)
+                .scale(scale = animatedToggleScale)
+                .clip(CircleShape)
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            // icon
+            Icon(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size((0.75 * size).dp),
+                tint = Color.Red,
+                imageVector = when (currentRecordingState) {
+                    is VideoRecordingState.Active.Recording -> Icons.Filled.Pause
+                    is VideoRecordingState.Active.Paused -> Icons.Filled.PlayArrow
+                },
+                contentDescription = "pause resume toggle"
+            )
+        }
     }
 }
 
@@ -212,11 +225,7 @@ fun AmplitudeVisualizer(
 
     // Tweak the multiplier to amplitude to adjust the visualizer sensitivity
     val animatedAudioScale by animateFloatAsState(
-        targetValue = 1 + (1.75f * currentUiState.value.amplitude.toFloat()),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        targetValue = EaseOutExpo.transform(1 + (1.75f * currentUiState.value.amplitude.toFloat())),
         label = "AudioAnimation"
     )
     Box(
@@ -411,15 +420,19 @@ fun PreviewDisplay(
     previewUiState: PreviewUiState.Ready,
     onTapToFocus: (x: Float, y: Float) -> Unit,
     onFlipCamera: () -> Unit,
-    onZoomChange: (Float) -> Unit,
+    onZoomRatioChange: (CameraZoomRatio) -> Unit,
     onRequestWindowColorMode: (Int) -> Unit,
     aspectRatio: AspectRatio,
     surfaceRequest: SurfaceRequest?,
     modifier: Modifier = Modifier
 ) {
     val transformableState = rememberTransformableState(
-        onTransformation = { zoomChange, _, _ ->
-            onZoomChange(zoomChange)
+        onTransformation = { pinchZoomChange, _, _ ->
+            onZoomRatioChange(
+                CameraZoomRatio(
+                    ZoomChange.Scale(pinchZoomChange)
+                )
+            )
         }
     )
 
@@ -697,17 +710,11 @@ fun SettingsNavButton(onNavigateToSettings: () -> Unit, modifier: Modifier = Mod
 }
 
 @Composable
-fun ZoomScaleText(zoomScale: Float) {
-    val contentAlpha = animateFloatAsState(
-        targetValue = 10f,
-        label = "zoomScaleAlphaAnimation",
-        animationSpec = tween()
-    )
+fun ZoomRatioText(zoomUiState: ZoomUiState.Enabled) {
     Text(
         modifier = Modifier
-            .alpha(contentAlpha.value)
             .testTag(ZOOM_RATIO_TAG),
-        text = stringResource(id = R.string.zoom_scale_text, zoomScale)
+        text = stringResource(id = R.string.zoom_ratio_text, zoomUiState.primaryZoomRatio ?: 1f)
     )
 }
 
@@ -732,63 +739,116 @@ fun CurrentCameraIdText(physicalCameraId: String?, logicalCameraId: String?) {
 }
 
 @Composable
-fun CaptureButton(
-    onClick: () -> Unit,
-    onLongPress: () -> Unit,
-    onRelease: () -> Unit,
-    videoRecordingState: VideoRecordingState,
-    modifier: Modifier = Modifier
+fun CaptureModeDropDown(
+    modifier: Modifier = Modifier,
+    onSetCaptureMode: (CaptureMode) -> Unit,
+    onDisabledCaptureMode: (DisabledReason) -> Unit,
+    captureModeUiState: CaptureModeUiState.Enabled
 ) {
-    var isPressedDown by remember {
-        mutableStateOf(false)
-    }
-    val currentColor = LocalContentColor.current
-    Box(
-        modifier = modifier
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onLongPress = {
-                        onLongPress()
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter =
+            fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+        ) {
+            fun onDisabledClick(selectableState: SingleSelectableState): () -> Unit =
+                if (selectableState is SingleSelectableState.Disabled) {
+                    { onDisabledCaptureMode(selectableState.disabledReason) }
+                } else {
+                    { TODO("Enabled should not have disabled click") }
+                }
+
+            Column {
+                DropDownItem(
+                    text = stringResource(R.string.quick_settings_text_capture_mode_standard),
+                    enabled = captureModeUiState.defaultCaptureState
+                        is SingleSelectableState.Selectable,
+                    onClick = {
+                        onSetCaptureMode(CaptureMode.STANDARD)
+                        isExpanded = false
                     },
-                    // TODO: @kimblebee - stopVideoRecording is being called every time the capture
-                    // button is pressed -- regardless of tap or long press
-                    onPress = {
-                        isPressedDown = true
-                        awaitRelease()
-                        isPressedDown = false
-                        onRelease()
+                    onDisabledClick = onDisabledClick(captureModeUiState.defaultCaptureState)
+                )
+                DropDownItem(
+                    text = stringResource(R.string.quick_settings_text_capture_mode_image_only),
+                    enabled = captureModeUiState.imageOnlyCaptureState
+                        is SingleSelectableState.Selectable,
+                    onClick = {
+                        onSetCaptureMode(CaptureMode.IMAGE_ONLY)
+                        isExpanded = false
                     },
-                    onTap = { onClick() }
+                    onDisabledClick = onDisabledClick(captureModeUiState.imageOnlyCaptureState)
+                )
+                DropDownItem(
+                    text = stringResource(R.string.quick_settings_text_capture_mode_video_only),
+                    enabled = captureModeUiState.videoOnlyCaptureState
+                        is SingleSelectableState.Selectable,
+                    onClick = {
+                        onSetCaptureMode(CaptureMode.VIDEO_ONLY)
+                        isExpanded = false
+                    },
+                    onDisabledClick = onDisabledClick(
+                        captureModeUiState.videoOnlyCaptureState
+                    )
+
                 )
             }
-            .size(120.dp)
-            .padding(18.dp)
-            .border(4.dp, currentColor, CircleShape)
-    ) {
-        Canvas(
+        }
+        // this text displays the current selection
+        Box(
             modifier = Modifier
-                .size(110.dp),
-            onDraw = {
-                drawCircle(
-                    alpha = when (videoRecordingState) {
-                        is VideoRecordingState.Active.Paused -> .37f
-                        else -> 1f
-                    },
-                    color =
-                    when (videoRecordingState) {
-                        is VideoRecordingState.Inactive -> {
-                            if (isPressedDown) currentColor else Color.Transparent
-                        }
-
-                        is VideoRecordingState.Active.Recording,
-                        is VideoRecordingState.Active.Paused -> Color.Red
-
-                        VideoRecordingState.Starting -> currentColor
-                    }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    // removes the greyish background animation that appears when clicking on a clickable
+                    indication = null,
+                    onClick = { isExpanded = !isExpanded }
                 )
-            }
-        )
+                .padding(8.dp)
+        ) {
+            Text(
+                text = when (captureModeUiState.currentSelection) {
+                    CaptureMode.STANDARD -> stringResource(
+                        R.string.quick_settings_text_capture_mode_standard
+                    )
+
+                    CaptureMode.VIDEO_ONLY -> stringResource(
+                        R.string.quick_settings_text_capture_mode_image_only
+                    )
+
+                    CaptureMode.IMAGE_ONLY -> stringResource(
+                        R.string.quick_settings_text_capture_mode_video_only
+                    )
+                },
+                modifier = Modifier.padding(16.dp)
+            )
+        }
     }
+}
+
+@Composable
+fun DropDownItem(
+    modifier: Modifier = Modifier,
+    text: String,
+    onClick: () -> Unit = {},
+    onDisabledClick: () -> Unit = {},
+    enabled: Boolean = true,
+    isSelected: Boolean = false
+) {
+    Text(
+        text = text,
+        color = if (enabled) Color.Unspecified else Color.DarkGray,
+        modifier = modifier
+            .clickable(enabled = true, onClick = if (enabled) onClick else onDisabledClick)
+            .apply {
+                if (!enabled) {
+                    alpha(.37f)
+                }
+            }
+            .padding(16.dp)
+    )
 }
 
 enum class ToggleState {
@@ -884,7 +944,7 @@ fun ToggleButton(
             ) {
                 Icon(
                     painter = leftIcon,
-                    contentDescription = leftIconDescription,
+                    contentDescription = "leftIcon",
                     modifier = Modifier.padding(iconPadding),
                     tint = if (!enabled) {
                         disableColor
@@ -896,7 +956,7 @@ fun ToggleButton(
                 )
                 Icon(
                     painter = rightIcon,
-                    contentDescription = rightIconDescription,
+                    contentDescription = "rightIcon",
                     modifier = Modifier.padding(iconPadding),
                     tint = if (!enabled) {
                         disableColor
