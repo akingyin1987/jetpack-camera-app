@@ -16,7 +16,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.dagger.hilt.android)
     alias(libs.plugins.compose.compiler)
 }
@@ -113,7 +113,7 @@ dependencies {
 
     // Hilt
     implementation(libs.dagger.hilt.android)
-    kapt(libs.dagger.hilt.compiler)
+    ksp(libs.dagger.hilt.compiler)
 
     // Media3
     implementation(libs.androidx.media3.exoplayer)
@@ -142,6 +142,6 @@ dependencies {
 }
 
 // Allow references to generated code
-kapt {
-    correctErrorTypes = true
-}
+//kapt {
+//    correctErrorTypes = true
+//}

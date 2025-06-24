@@ -1,55 +1,52 @@
 [versions]
 # Used directly in build.gradle.kts files
 compileSdk = "35"
-orchestrator = "1.4.2"
+orchestrator = "1.5.1"
 minSdk = "21"
 targetSdk = "35"
-composeCompiler = "1.5.15"
+composeCompiler = "1.5.14"
 
 # Used below in dependency definitions
 # Compose and Accompanist versions are linked
 # See https://github.com/google/accompanist?tab=readme-ov-file#compose-versions
-composeBom = "2025.01.01"
-
-
-
-
-accompanist = "0.36.0"
+composeBom = "2025.05.00"
+accompanist = "0.37.3"
 # kotlinPlugin and composeCompiler are linked
 # See https://developer.android.com/jetpack/androidx/releases/compose-kotlin
-kotlinPlugin = "2.0.21"
-androidGradlePlugin = "8.8.0"
-protobufPlugin = "0.9.4"
-ksp ="2.0.21-1.0.28"
 
+kotlinPlugin = "2.1.21"
+ksp ="2.1.21-2.0.2"
+androidGradlePlugin = "8.10.0"
+protobufPlugin = "0.9.5"
 
-androidxActivityCompose = "1.9.3"
-androidxAppCompat = "1.7.0"
-androidxBenchmark = "1.3.3"
-androidxCamera = "1.5.0-alpha05"
+androidxActivityCompose = "1.10.1"
+androidxAppCompat = "1.7.1"
+androidxBenchmark = "1.3.4"
+androidxCamera = "1.5.0-SNAPSHOT"
 androidxConcurrentFutures = "1.2.0"
-androidxCoreKtx = "1.15.0"
-androidxDatastore = "1.1.1"
-androidxGraphicsCore = "1.0.2"
+androidxCoreKtx = "1.16.0"
+androidxDatastore = "1.1.6"
+androidxGraphicsCore = "1.0.3"
 androidxHiltNavigationCompose = "1.2.0"
-androidxLifecycle = "2.8.7"
-androidxNavigationCompose = "2.8.4"
+androidxLifecycle = "2.9.0"
+androidxMedia3 = "1.6.1"
+androidxNavigationCompose = "2.9.0"
 androidxProfileinstaller = "1.4.1"
 androidxTestEspresso = "3.6.1"
 androidxTestJunit = "1.2.1"
 androidxTestMonitor = "1.7.2"
 androidxTestRules = "1.6.1"
 androidxTestUiautomator = "2.3.0"
-androidxTracing = "1.2.0"
+androidxTracing = "1.3.0"
 cmake = "3.22.1"
-kotlinxAtomicfu = "0.23.2"
-kotlinxCoroutines = "1.9.0"
-hilt = "2.54"
+kotlinxAtomicfu = "0.27.0"
+kotlinxCoroutines = "1.10.2"
+hilt = "2.56.2"
 junit = "4.13.2"
-mockitoCore = "5.7.0"
-protobuf = "4.26.1"
-robolectric = "4.14"
-truth = "1.4.2"
+mockitoCore = "5.17.0"
+protobuf = "4.31.0"
+robolectric = "4.14.1"
+truth = "1.4.4"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
@@ -64,6 +61,8 @@ androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTe
 androidx-lifecycle-livedata = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "androidxLifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "androidxMedia3" }
+androidx-media3-ui-compose = { module = "androidx.media3:media3-ui-compose", version.ref = "androidxMedia3" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidxNavigationCompose" }
 androidx-orchestrator = { module = "androidx.test:orchestrator", version.ref = "orchestrator" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "androidxProfileinstaller" }
@@ -88,7 +87,6 @@ dagger-hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref
 futures-ktx = { module = "androidx.concurrent:concurrent-futures-ktx", version.ref = "androidxConcurrentFutures" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "androidxHiltNavigationCompose" }
 junit = { module = "junit:junit", version.ref = "junit" }
-kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlinPlugin" }
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinxAtomicfu" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
@@ -102,9 +100,9 @@ truth = { module = "com.google.truth:truth", version.ref = "truth" }
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 android-test = { id = "com.android.test", version.ref = "androidGradlePlugin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlinPlugin" }
 dagger-hilt-android =  { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 google-protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlinPlugin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlinPlugin" }
-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlinPlugin" }
 ksp ={id = "com.google.devtools.ksp",version.ref="ksp"}
