@@ -48,15 +48,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.jetpackcamera.model.AspectRatio
+import com.google.jetpackcamera.model.DarkMode
+import com.google.jetpackcamera.model.FlashMode
+import com.google.jetpackcamera.model.LensFacing
+import com.google.jetpackcamera.model.StabilizationMode
+import com.google.jetpackcamera.model.StreamConfig
+import com.google.jetpackcamera.model.VideoQuality
 import com.google.jetpackcamera.settings.AspectRatioUiState
 import com.google.jetpackcamera.settings.AudioUiState
 import com.google.jetpackcamera.settings.DarkModeUiState
@@ -75,17 +85,10 @@ import com.google.jetpackcamera.settings.TEN_SECONDS_DURATION
 import com.google.jetpackcamera.settings.THIRTY_SECONDS_DURATION
 import com.google.jetpackcamera.settings.UNLIMITED_VIDEO_DURATION
 import com.google.jetpackcamera.settings.VideoQualityUiState
-import com.google.jetpackcamera.settings.model.AspectRatio
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_15
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_30
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_60
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_AUTO
-import com.google.jetpackcamera.settings.model.DarkMode
-import com.google.jetpackcamera.settings.model.FlashMode
-import com.google.jetpackcamera.settings.model.LensFacing
-import com.google.jetpackcamera.settings.model.StabilizationMode
-import com.google.jetpackcamera.settings.model.StreamConfig
-import com.google.jetpackcamera.settings.model.VideoQuality
 import com.google.jetpackcamera.settings.ui.theme.SettingsPreviewTheme
 
 /**
@@ -186,8 +189,17 @@ fun DefaultCameraFacing(
     lensUiState: FlipLensUiState,
     setDefaultLensFacing: (LensFacing) -> Unit
 ) {
+    val context = LocalContext.current
     SwitchSettingUI(
-        modifier = modifier.testTag(BTN_SWITCH_SETTING_LENS_FACING_TAG),
+        modifier = modifier.testTag(BTN_SWITCH_SETTING_LENS_FACING_TAG)
+            .semantics {
+                stateDescription = when (lensUiState.currentLensFacing) {
+                    LensFacing.FRONT ->
+                        context.getString(R.string.default_facing_camera_description_front)
+                    LensFacing.BACK ->
+                        context.getString(R.string.default_facing_camera_description_back)
+                }
+            },
         title = stringResource(id = R.string.default_facing_camera_title),
         description = when (lensUiState) {
             is FlipLensUiState.Disabled -> {
@@ -843,7 +855,9 @@ fun BasicPopupSetting(
             confirmButton = {
                 Text(
                     text = "Close",
-                    modifier = Modifier.clickable { popupStatus.value = false }
+                    modifier = Modifier
+                        .testTag(CLOSE_BUTTON)
+                        .clickable { popupStatus.value = false }
                 )
             },
             title = { Text(text = title) },

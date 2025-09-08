@@ -17,7 +17,6 @@ package com.google.jetpackcamera
 
 import android.app.Activity
 import android.net.Uri
-import android.os.Environment
 import android.provider.MediaStore
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -28,12 +27,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import androidx.test.uiautomator.UiDevice
 import com.google.common.truth.Truth
-import com.google.common.truth.Truth.assertThat
-import com.google.jetpackcamera.feature.preview.ui.CAPTURE_BUTTON
-import com.google.jetpackcamera.feature.preview.ui.VIDEO_CAPTURE_FAILURE_TAG
-import com.google.jetpackcamera.feature.preview.ui.VIDEO_CAPTURE_SUCCESS_TAG
+import com.google.jetpackcamera.ui.components.capture.CAPTURE_BUTTON
+import com.google.jetpackcamera.ui.components.capture.VIDEO_CAPTURE_FAILURE_TAG
+import com.google.jetpackcamera.ui.components.capture.VIDEO_CAPTURE_SUCCESS_TAG
 import com.google.jetpackcamera.utils.APP_START_TIMEOUT_MILLIS
 import com.google.jetpackcamera.utils.IMAGE_PREFIX
+import com.google.jetpackcamera.utils.MOVIES_DIR_PATH
 import com.google.jetpackcamera.utils.TEST_REQUIRED_PERMISSIONS
 import com.google.jetpackcamera.utils.VIDEO_CAPTURE_TIMEOUT_MILLIS
 import com.google.jetpackcamera.utils.VIDEO_PREFIX
@@ -43,7 +42,7 @@ import com.google.jetpackcamera.utils.getSingleImageCaptureIntent
 import com.google.jetpackcamera.utils.getTestUri
 import com.google.jetpackcamera.utils.longClickForVideoRecording
 import com.google.jetpackcamera.utils.pressAndDragToLockVideoRecording
-import com.google.jetpackcamera.utils.runMediaStoreAutoDeleteScenarioTest
+import com.google.jetpackcamera.utils.runMainActivityMediaStoreAutoDeleteScenarioTest
 import com.google.jetpackcamera.utils.runScenarioTestForResult
 import com.google.jetpackcamera.utils.tapStartLockedVideoRecording
 import org.junit.Rule
@@ -63,7 +62,7 @@ internal class VideoRecordingDeviceTest {
     private val uiDevice = UiDevice.getInstance(instrumentation)
 
     @Test
-    fun pressed_video_capture(): Unit = runMediaStoreAutoDeleteScenarioTest<MainActivity>(
+    fun pressed_video_capture(): Unit = runMainActivityMediaStoreAutoDeleteScenarioTest(
         mediaUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
     ) {
         val timeStamp = System.currentTimeMillis()
@@ -75,12 +74,12 @@ internal class VideoRecordingDeviceTest {
         composeTestRule.waitUntil(timeoutMillis = VIDEO_CAPTURE_TIMEOUT_MILLIS) {
             composeTestRule.onNodeWithTag(VIDEO_CAPTURE_SUCCESS_TAG).isDisplayed()
         }
-        deleteFilesInDirAfterTimestamp(DIR_PATH, instrumentation, timeStamp)
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
     }
 
     @Test
     fun drag_to_lock_pressed_video_capture(): Unit =
-        runMediaStoreAutoDeleteScenarioTest<MainActivity>(
+        runMainActivityMediaStoreAutoDeleteScenarioTest(
             mediaUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         ) {
             val timeStamp = System.currentTimeMillis()
@@ -99,13 +98,13 @@ internal class VideoRecordingDeviceTest {
                 composeTestRule.onNodeWithTag(VIDEO_CAPTURE_SUCCESS_TAG).isDisplayed()
             }
 
-            deleteFilesInDirAfterTimestamp(DIR_PATH, instrumentation, timeStamp)
+            deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
         }
 
     @Test
     fun pressed_video_capture_external_intent() {
         val timeStamp = System.currentTimeMillis()
-        val uri = getTestUri(DIR_PATH, timeStamp, "mp4")
+        val uri = getTestUri(MOVIES_DIR_PATH, timeStamp, "mp4")
         val result =
             runScenarioTestForResult<MainActivity>(
                 getSingleImageCaptureIntent(uri, MediaStore.ACTION_VIDEO_CAPTURE)
@@ -118,13 +117,13 @@ internal class VideoRecordingDeviceTest {
             }
         Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
         Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isTrue()
-        deleteFilesInDirAfterTimestamp(DIR_PATH, instrumentation, timeStamp)
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
     }
 
     @Test
     fun tap_video_capture_external_intent() {
         val timeStamp = System.currentTimeMillis()
-        val uri = getTestUri(DIR_PATH, timeStamp, "mp4")
+        val uri = getTestUri(MOVIES_DIR_PATH, timeStamp, "mp4")
         val result =
             runScenarioTestForResult<MainActivity>(
                 getSingleImageCaptureIntent(uri, MediaStore.ACTION_VIDEO_CAPTURE)
@@ -142,7 +141,7 @@ internal class VideoRecordingDeviceTest {
         Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
         Truth.assertThat(doesMediaExist(uri, IMAGE_PREFIX)).isFalse()
         Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isTrue()
-        deleteFilesInDirAfterTimestamp(DIR_PATH, instrumentation, timeStamp)
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
     }
 
     @Test
@@ -164,10 +163,5 @@ internal class VideoRecordingDeviceTest {
             }
         Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
         Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isFalse()
-    }
-
-    companion object {
-        val DIR_PATH: String =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
     }
 }
