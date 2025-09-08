@@ -34,6 +34,23 @@ const val UNLIMITED_VIDEO_DURATION = 0L
 
 /**
  * Data layer representation for settings.
+ *  * @property captureMode 拍摄模式，如标准模式或专业模式
+ *  * @property cameraLensFacing 相机镜头朝向，前置或后置
+ *  * @property darkMode 深色模式设置，如系统默认、浅色或深色
+ *  * @property flashMode 闪光灯模式，开启、关闭或自动
+ *  * @property streamConfig 流配置，定义如何处理相机数据流
+ *  * @property aspectRatio 纵横比，如 4:3, 16:9 等
+ *  * @property stabilizationMode 稳定模式，如自动、开启或关闭
+ *  * @property dynamicRange 动态范围，如 SDR 或 HDR
+ *  * @property videoQuality 视频质量设置
+ *  * @property defaultZoomRatios 默认缩放比例，按镜头朝向分别设置
+ *  * @property targetFrameRate 目标帧率，0表示自动
+ *  * @property imageFormat 图像输出格式，如 JPEG 或 PNG
+ *  * @property audioEnabled 是否启用音频录制
+ *  * @property deviceRotation 设备旋转方向
+ *  * @property concurrentCameraMode 并发相机模式，用于同时使用前后摄像头
+ *  * @property maxVideoDurationMillis 视频最大时长限制，0表示无限制
+ *  * @property debugSettings 调试设置
  */
 data class CameraAppSettings(
     val captureMode: CaptureMode = CaptureMode.STANDARD,
@@ -45,7 +62,7 @@ data class CameraAppSettings(
     val stabilizationMode: StabilizationMode = StabilizationMode.AUTO,
     val dynamicRange: DynamicRange = DynamicRange.SDR,
     val videoQuality: VideoQuality = VideoQuality.UNSPECIFIED,
-    val zoomScale: Float = 1f,
+    val defaultZoomRatios: Map<LensFacing, Float> = mapOf(),
     val targetFrameRate: Int = TARGET_FPS_AUTO,
     val imageFormat: ImageOutputFormat = ImageOutputFormat.JPEG,
     val audioEnabled: Boolean = true,
@@ -55,8 +72,17 @@ data class CameraAppSettings(
     val debugSettings: DebugSettings = DebugSettings()
 )
 
+/**
+ * 根据当前镜头朝向获取相机约束条件
+ *
+ * @param cameraAppSettings
+ * @return
+ */
 fun CameraSystemConstraints.forCurrentLens(
     cameraAppSettings: CameraAppSettings
 ): CameraConstraints? = perLensConstraints[cameraAppSettings.cameraLensFacing]
 
+/**
+ * 默认的相机应用设置实例
+ */
 val DEFAULT_CAMERA_APP_SETTINGS = CameraAppSettings()

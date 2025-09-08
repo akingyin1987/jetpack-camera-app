@@ -17,10 +17,16 @@ package com.google.jetpackcamera.model
 
 /**
  * Class representing the app's configuration to capture an image
+ * 定义了相机应用支持的不同拍摄模式，每种模式决定了可以执行的拍摄操作类型，以及用户交互的方式
  */
 enum class CaptureMode {
 
     /**
+     * 标准拍摄模式
+     * 在此模式下，同时绑定图像和视频使用场景，支持拍照和录像功能
+     * 用户交互:
+     *      * - 点击拍摄按钮进行拍照
+     *      * - 长按拍摄按钮开始录制视频，释放按钮完成录制
      * Both Image and Video use cases will be bound.
      *
      * Tap the Capture Button to take an image.
@@ -30,6 +36,7 @@ enum class CaptureMode {
     STANDARD,
 
     /**
+     * 仅视频模式
      * Video use case will be bound. Image use case will not be bound.
      *
      * Tap the Capture Button to start recording.
@@ -40,6 +47,7 @@ enum class CaptureMode {
     VIDEO_ONLY,
 
     /**
+     * 仅图像模式
      * Image use case will be bound. Video use case will not be bound.
      *
      * Tap the Capture Button to capture an Image.

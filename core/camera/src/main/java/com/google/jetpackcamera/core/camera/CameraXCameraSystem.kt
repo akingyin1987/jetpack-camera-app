@@ -313,7 +313,7 @@ constructor(
             .filterNotNull()
             .map { currentCameraSettings ->
                 transientSettings.value = TransientSessionSettings(
-                    isAudioEnabled = currentCameraSettings.audioEnabled,
+                      isAudioEnabled = currentCameraSettings.audioEnabled,
                     deviceRotation = currentCameraSettings.deviceRotation,
                     flashMode = currentCameraSettings.flashMode,
                     primaryLensFacing = currentCameraSettings.cameraLensFacing,

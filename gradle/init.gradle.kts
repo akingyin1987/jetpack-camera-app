@@ -20,6 +20,7 @@ initscript {
     val spotlessVersion = "6.25.0"
 
     repositories {
+        maven {setUrl("https://mirrors.huaweicloud.com/repository/maven")}
         mavenCentral()
     }
 
