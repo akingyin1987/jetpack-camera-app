@@ -26,11 +26,19 @@ import "com/google/jetpackcamera/model/proto/lens_facing.proto";
 import "com/google/jetpackcamera/model/proto/stabilization_mode.proto";
 import "com/google/jetpackcamera/model/proto/video_quality.proto";
 
-
+//设置生成的 Java 类的包名为 com.google.jetpackcamera.settings
 option java_package = "com.google.jetpackcamera.settings";
+//表示为每个消息生成单独的 Java 文件
 option java_multiple_files = true;
 
+/**
+   这是一个 Protocol Buffers (protobuf) 定义文件
+ */
+
 message JcaSettings {
+  //字段类型: 如 LensFacing、int32、bool 等
+  //字段名称: 如 default_lens_facing、flash_mode_status 等
+  //字段编号: 如 = 1、= 2 等（这些数字用于 protobuf 序列化）
   // Camera settings
   LensFacing default_lens_facing = 1;
   FlashMode flash_mode_status = 2;

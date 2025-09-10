@@ -47,8 +47,7 @@ import com.google.jetpackcamera.model.LensFacing
 import com.google.jetpackcamera.ui.uistate.capture.ZoomControlUiState
 import java.math.RoundingMode
 import java.text.DecimalFormat
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(  ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ZoomButtonRow(
     onChangeZoom: (Float) -> Unit,

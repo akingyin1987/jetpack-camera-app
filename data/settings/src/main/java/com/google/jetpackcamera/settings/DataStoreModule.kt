@@ -40,9 +40,11 @@ object DataStoreModule {
     @Singleton
     fun provideDataStore(@ApplicationContext context: Context): DataStore<JcaSettings> =
         DataStoreFactory.create(
+            //指定数据损坏处理程序 ，当数据存储文件损坏 时使用ReplaceFileCorruptionHandler 并提供一个默认的 JcaSettings 实例来替换损坏的文件
             corruptionHandler = ReplaceFileCorruptionHandler { JcaSettings.getDefaultInstance() },
             // TODO(b/286245619, kimblebee@): Inject coroutine scope once module providing default IO dispatcher scope is implemented
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            migrations = emptyList(),
             serializer = JcaSettingsSerializer,
             produceFile = {
                 context.dataStoreFile(FILE_LOCATION)
