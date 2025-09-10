@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +47,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionState
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.google.jetpackcamera.permissions.PermissionEnum
 import com.google.jetpackcamera.permissions.R
@@ -61,21 +64,29 @@ import com.google.jetpackcamera.permissions.R
 fun PermissionTemplate(
     modifier: Modifier = Modifier,
     permissionEnum: PermissionEnum,
-    permissionState: PermissionState,
-    onRequestPermission: () -> Unit,
+    onDismissPermission: () -> Unit,
     onSkipPermission: (() -> Unit)? = null,
     onOpenAppSettings: () -> Unit
 ) {
+    val permissionState = rememberPermissionState(permissionEnum.getPermission())
+
+    // LaunchedEffect will skip permission enum if already granted.
+    LaunchedEffect(permissionState.status) {
+        if (permissionState.status.isGranted ||
+            (permissionState.status.shouldShowRationale && permissionEnum.isOptional())
+        ) {
+            onDismissPermission()
+        }
+    }
+
     PermissionTemplate(
         modifier = modifier,
         testTag = permissionEnum.getTestTag(),
         onRequestPermission = {
             if (permissionState.status.shouldShowRationale) {
-                // 打开系统设置页面，让用户手动开启权限
                 onOpenAppSettings()
             } else {
-                // 直接请求权限
-                onRequestPermission()
+                permissionState.launchPermissionRequest()
             }
         },
         onSkipPermission = onSkipPermission,
@@ -209,7 +220,6 @@ fun PermissionButtonSection(
     modifier: Modifier = Modifier,
     onRequestPermission: () -> Unit,
     requestButtonText: String,
-    //跳过权限请求按钮，可选
     onSkipPermission: (() -> Unit)?
 ) {
     Box(modifier = modifier) {

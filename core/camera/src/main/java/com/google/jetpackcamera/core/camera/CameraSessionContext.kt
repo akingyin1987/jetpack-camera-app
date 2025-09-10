@@ -34,11 +34,10 @@ internal data class CameraSessionContext(
     val context: Context,
     val cameraProvider: ProcessCameraProvider,
     val backgroundDispatcher: CoroutineDispatcher,
-    val screenFlashEvents: SendChannel<CameraUseCase.ScreenFlashEvent>,
+    val screenFlashEvents: SendChannel<CameraSystem.ScreenFlashEvent>,
     val focusMeteringEvents: Channel<CameraEvent.FocusMeteringEvent>,
     val videoCaptureControlEvents: Channel<VideoCaptureControlEvent>,
     val currentCameraState: MutableStateFlow<CameraState>,
     val surfaceRequests: MutableStateFlow<SurfaceRequest?>,
-    val transientSettings: StateFlow<TransientSessionSettings?>,
-    var zoomScale: MutableStateFlow<Float>
+    val transientSettings: StateFlow<TransientSessionSettings?>
 )

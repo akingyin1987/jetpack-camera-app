@@ -19,8 +19,11 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -34,6 +37,8 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import com.google.common.truth.Truth.assertWithMessage
+import com.google.errorprone.annotations.CanIgnoreReturnValue
+import com.google.jetpackcamera.MainActivity
 import java.io.File
 import java.net.URLConnection
 import java.util.concurrent.TimeoutException
@@ -54,22 +59,38 @@ import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
+val compatMainActivityExtras: Bundle?
+    get() = if (Build.HARDWARE == "ranchu" && Build.VERSION.SDK_INT == 28) {
+        // The GMD API 28 emulator's PackageInfo reports it has front and back cameras, but
+        // GMD is only configured for a back camera. This causes CameraX to take a long time
+        // to initialize. Set the device to use single lens mode to work around this issue.
+        Bundle().apply {
+            putString(MainActivity.KEY_DEBUG_SINGLE_LENS_MODE, "back")
+        }
+    } else {
+        null
+    }
+const val DEFAULT_TIMEOUT_MILLIS = 1_000L
 const val APP_START_TIMEOUT_MILLIS = 10_000L
 const val SCREEN_FLASH_OVERLAY_TIMEOUT_MILLIS = 5_000L
 const val IMAGE_CAPTURE_TIMEOUT_MILLIS = 5_000L
 const val VIDEO_CAPTURE_TIMEOUT_MILLIS = 5_000L
-const val VIDEO_DURATION_MILLIS = 2_000L
-private const val TAG = "UiTestUtil"
-const val MESSAGE_DISAPPEAR_TIMEOUT_MILLIS = 10_000L
+const val VIDEO_DURATION_MILLIS = 3_000L
+const val MESSAGE_DISAPPEAR_TIMEOUT_MILLIS = 15_000L
+const val FILE_PREFIX = "JCA"
+const val VIDEO_PREFIX = "video"
+const val IMAGE_PREFIX = "image"
 const val COMPONENT_PACKAGE_NAME = "com.google.jetpackcamera"
 const val COMPONENT_CLASS = "com.google.jetpackcamera.MainActivity"
-inline fun <reified T : Activity> runMediaStoreAutoDeleteScenarioTest(
+private const val TAG = "UiTestUtil"
+
+inline fun runMainActivityMediaStoreAutoDeleteScenarioTest(
     mediaUri: Uri,
     filePrefix: String = "",
     expectedNumFiles: Int = 1,
     fileWaitTimeoutMs: Duration = 10.seconds,
     fileObserverContext: CoroutineContext = Dispatchers.IO,
-    crossinline block: ActivityScenario<T>.() -> Unit
+    crossinline block: ActivityScenario<MainActivity>.() -> Unit
 ) = runBlocking {
     val debugTag = "MediaStoreAutoDelete"
     val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -88,7 +109,7 @@ inline fun <reified T : Activity> runMediaStoreAutoDeleteScenarioTest(
 
     var succeeded = false
     try {
-        runScenarioTest(block = block)
+        runMainActivityScenarioTest(block = block)
         succeeded = true
     } finally {
         withContext(NonCancellable) {
@@ -127,18 +148,46 @@ inline fun <reified T : Activity> runMediaStoreAutoDeleteScenarioTest(
     }
 }
 
+inline fun runMainActivityScenarioTest(
+    crossinline block: ActivityScenario<MainActivity>.() -> Unit
+) = runScenarioTest<MainActivity>(compatMainActivityExtras, block)
+
 inline fun <reified T : Activity> runScenarioTest(
+    activityExtras: Bundle? = null,
     crossinline block: ActivityScenario<T>.() -> Unit
 ) {
-    ActivityScenario.launch(T::class.java).use { scenario ->
-        scenario.apply(block)
+    val intent = activityExtras?.let {
+        Intent.makeMainActivity(
+            ComponentName(
+                InstrumentationRegistry.getInstrumentation().targetContext,
+                T::class.java
+            )
+        ).putExtras(it)
+    }
+
+    if (intent != null) {
+        ActivityScenario.launch<T>(intent).use { scenario ->
+            scenario.apply(block)
+        }
+    } else {
+        ActivityScenario.launch(T::class.java).use { scenario ->
+            scenario.apply(block)
+        }
     }
 }
 
+inline fun runMainActivityScenarioTestForResult(
+    intent: Intent,
+    crossinline block: ActivityScenario<MainActivity>.() -> Unit
+): Instrumentation.ActivityResult =
+    runScenarioTestForResult<MainActivity>(intent, compatMainActivityExtras, block)
+
 inline fun <reified T : Activity> runScenarioTestForResult(
     intent: Intent,
+    activityExtras: Bundle? = null,
     crossinline block: ActivityScenario<T>.() -> Unit
 ): Instrumentation.ActivityResult {
+    activityExtras?.let { intent.putExtras(it) }
     ActivityScenario.launchActivityForResult<T>(intent).use { scenario ->
         scenario.apply(block)
         return runBlocking { scenario.pollResult() }
@@ -162,43 +211,78 @@ suspend inline fun <reified T : Activity> ActivityScenario<T>.pollResult(
     )
 }
 
-fun getTestUri(directoryPath: String, timeStamp: Long, suffix: String): Uri {
-    return Uri.fromFile(
-        File(
-            directoryPath,
-            "$timeStamp.$suffix"
-        )
+fun getTestUri(directoryPath: String, timeStamp: Long, suffix: String): Uri = Uri.fromFile(
+    File(
+        directoryPath,
+        "$timeStamp.$suffix"
     )
-}
+)
 
+/**
+ * @return - true if all eligible files were successfully deleted. False otherwise
+ */
+@CanIgnoreReturnValue
 fun deleteFilesInDirAfterTimestamp(
     directoryPath: String,
     instrumentation: Instrumentation,
     timeStamp: Long
 ): Boolean {
-    var hasDeletedFile = false
+    val fileStatus = mutableMapOf<String, Boolean>()
     for (file in File(directoryPath).listFiles() ?: emptyArray()) {
         if (file.lastModified() >= timeStamp) {
-            file.delete()
+            fileStatus.put(file.name, file.delete())
             if (file.exists()) {
-                file.canonicalFile.delete()
+                fileStatus.put(file.name, file.canonicalFile.delete())
                 if (file.exists()) {
-                    instrumentation.targetContext.applicationContext.deleteFile(file.name)
+                    fileStatus.put(
+                        file.name,
+                        instrumentation.targetContext.applicationContext.deleteFile(file.name)
+                    )
                 }
             }
-            hasDeletedFile = true
         }
     }
-    return hasDeletedFile
+    return fileStatus.keys.all { fileStatus[it] ?: false }
 }
 
-fun doesImageFileExist(uri: Uri, prefix: String): Boolean {
-    val file = uri.path?.let { File(it) }
-    if (file?.exists() == true) {
-        val mimeType = URLConnection.guessContentTypeFromName(uri.path)
-        return mimeType != null && mimeType.startsWith(prefix)
+fun doesFileExist(uri: Uri): Boolean = uri.path?.let { File(it) }?.exists() == true
+
+fun doesMediaExist(uri: Uri, prefix: String): Boolean {
+    require(prefix == IMAGE_PREFIX || prefix == VIDEO_PREFIX) { "Uknown prefix: $prefix" }
+    return if (prefix == IMAGE_PREFIX) {
+        doesImageExist(uri)
+    } else {
+        doesVideoExist(uri, prefix)
     }
-    return false
+}
+
+private fun doesImageExist(uri: Uri): Boolean {
+    val bitmap = uri.path?.let { path -> BitmapFactory.decodeFile(path) }
+    val mimeType = URLConnection.guessContentTypeFromName(uri.path)
+    return mimeType != null && mimeType.startsWith(IMAGE_PREFIX) && bitmap != null
+}
+
+private fun doesVideoExist(
+    uri: Uri,
+    prefix: String,
+    checkAudio: Boolean = false,
+    durationMs: Long? = null
+): Boolean {
+    require(prefix == VIDEO_PREFIX) {
+        "doesVideoExist() only works for videos. Can't handle prefix: $prefix"
+    }
+
+    if (!doesFileExist(uri)) {
+        return false
+    }
+    return MediaMetadataRetriever().useAndRelease {
+        it.setDataSource(uri.path)
+
+        it.getMimeType().startsWith(prefix) &&
+            it.hasVideo() &&
+            (!checkAudio || it.hasAudio()) &&
+            (durationMs == null || it.getDurationMs() == durationMs)
+    } == true
 }
 
 fun getSingleImageCaptureIntent(uri: Uri, action: String): Intent {
@@ -239,8 +323,7 @@ fun stateDescriptionMatches(expected: String?) = SemanticsMatcher("stateDescript
 class IndividualTestGrantPermissionRule(
     private val permissions: Array<String>,
     private val targetTestNames: Array<String>
-) :
-    TestRule {
+) : TestRule {
     private lateinit var wrappedRule: GrantPermissionRule
 
     override fun apply(base: Statement, description: Description): Statement {

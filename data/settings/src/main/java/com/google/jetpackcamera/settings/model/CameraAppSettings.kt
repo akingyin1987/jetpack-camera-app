@@ -15,84 +15,74 @@
  */
 package com.google.jetpackcamera.settings.model
 
+import com.google.jetpackcamera.model.AspectRatio
+import com.google.jetpackcamera.model.CaptureMode
+import com.google.jetpackcamera.model.ConcurrentCameraMode
+import com.google.jetpackcamera.model.DarkMode
+import com.google.jetpackcamera.model.DebugSettings
+import com.google.jetpackcamera.model.DeviceRotation
+import com.google.jetpackcamera.model.DynamicRange
+import com.google.jetpackcamera.model.FlashMode
+import com.google.jetpackcamera.model.ImageOutputFormat
+import com.google.jetpackcamera.model.LensFacing
+import com.google.jetpackcamera.model.StabilizationMode
+import com.google.jetpackcamera.model.StreamConfig
+import com.google.jetpackcamera.model.VideoQuality
+
 const val TARGET_FPS_AUTO = 0
 const val UNLIMITED_VIDEO_DURATION = 0L
-val DEFAULT_HDR_DYNAMIC_RANGE = DynamicRange.HLG10
-val DEFAULT_HDR_IMAGE_OUTPUT = ImageOutputFormat.JPEG_ULTRA_HDR
-
-
 
 /**
  * Data layer representation for settings.
+ *  * @property captureMode 拍摄模式，如标准模式或专业模式
+ *  * @property cameraLensFacing 相机镜头朝向，前置或后置
+ *  * @property darkMode 深色模式设置，如系统默认、浅色或深色
+ *  * @property flashMode 闪光灯模式，开启、关闭或自动
+ *  * @property streamConfig 流配置，定义如何处理相机数据流
+ *  * @property aspectRatio 纵横比，如 4:3, 16:9 等
+ *  * @property stabilizationMode 稳定模式，如自动、开启或关闭
+ *  * @property dynamicRange 动态范围，如 SDR 或 HDR
+ *  * @property videoQuality 视频质量设置
+ *  * @property defaultZoomRatios 默认缩放比例，按镜头朝向分别设置
+ *  * @property targetFrameRate 目标帧率，0表示自动
+ *  * @property imageFormat 图像输出格式，如 JPEG 或 PNG
+ *  * @property audioEnabled 是否启用音频录制
+ *  * @property deviceRotation 设备旋转方向
+ *  * @property concurrentCameraMode 并发相机模式，用于同时使用前后摄像头
+ *  * @property maxVideoDurationMillis 视频最大时长限制，0表示无限制
+ *  * @property debugSettings 调试设置
  */
-
-// 相机应用设置的数据类
 data class CameraAppSettings(
     val captureMode: CaptureMode = CaptureMode.STANDARD,
-    // 摄像头朝向：默认为后置摄像头
     val cameraLensFacing: LensFacing = LensFacing.BACK,
-
-    // 暗黑模式：默认为系统默认设置
     val darkMode: DarkMode = DarkMode.SYSTEM,
-
-    // 闪光灯模式：默认为关闭
     val flashMode: FlashMode = FlashMode.OFF,
-
-    // 流配置：默认为多流配置（可能涉及预览流、拍照流等）
     val streamConfig: StreamConfig = StreamConfig.MULTI_STREAM,
-
-    // 宽高比：默认为16:9
     val aspectRatio: AspectRatio = AspectRatio.NINE_SIXTEEN,
-
-    // 稳定模式：默认为自动稳定
     val stabilizationMode: StabilizationMode = StabilizationMode.AUTO,
-
-    // 动态范围：默认为标准动态范围（SDR）
     val dynamicRange: DynamicRange = DynamicRange.SDR,
-
-    // 视频质量：默认为未指定，具体质量由其他设置决定
     val videoQuality: VideoQuality = VideoQuality.UNSPECIFIED,
-
-    // 缩放比例：默认为1.0（即不缩放）
-    val zoomScale: Float = 1f,
-
-    // 目标帧率：默认为自动帧率（具体值由设备或库决定）
-    val targetFrameRate: Int = TARGET_FPS_AUTO, // 假设TARGET_FPS_AUTO是一个预定义的常量
-
-    // 图像输出格式：默认为JPEG格式
+    val defaultZoomRatios: Map<LensFacing, Float> = mapOf(),
+    val targetFrameRate: Int = TARGET_FPS_AUTO,
     val imageFormat: ImageOutputFormat = ImageOutputFormat.JPEG,
-
-    // 音频启用状态：默认为启用
     val audioEnabled: Boolean = true,
-
-    // 设备旋转：默认为自然旋转（即根据设备当前方向自动旋转）
     val deviceRotation: DeviceRotation = DeviceRotation.Natural,
-
-    // 并发摄像头模式：默认为关闭（即一次只能使用一个摄像头）
     val concurrentCameraMode: ConcurrentCameraMode = ConcurrentCameraMode.OFF,
-
-    // 最大视频时长（毫秒）：默认为无限制
-    val maxVideoDurationMillis: Long = UNLIMITED_VIDEO_DURATION
+    val maxVideoDurationMillis: Long = UNLIMITED_VIDEO_DURATION,
+    val debugSettings: DebugSettings = DebugSettings()
 )
-//data class CameraAppSettings(
-//    val cameraLensFacing: LensFacing = LensFacing.BACK,
-//    val darkMode: DarkMode = DarkMode.SYSTEM,
-//    val flashMode: FlashMode = FlashMode.OFF,
-//    val streamConfig: StreamConfig = StreamConfig.MULTI_STREAM,
-//    val aspectRatio: AspectRatio = AspectRatio.NINE_SIXTEEN,
-//    val stabilizationMode: StabilizationMode = StabilizationMode.AUTO,
-//    val dynamicRange: DynamicRange = DynamicRange.SDR,
-//    val videoQuality: VideoQuality = VideoQuality.UNSPECIFIED,
-//    val zoomScale: Float = 1f,
-//    val targetFrameRate: Int = TARGET_FPS_AUTO,
-//    val imageFormat: ImageOutputFormat = ImageOutputFormat.JPEG,
-//    val audioEnabled: Boolean = true,
-//    val deviceRotation: DeviceRotation = DeviceRotation.Natural,
-//    val concurrentCameraMode: ConcurrentCameraMode = ConcurrentCameraMode.OFF,
-//    val maxVideoDurationMillis: Long = UNLIMITED_VIDEO_DURATION
-//)
 
-fun SystemConstraints.forCurrentLens(cameraAppSettings: CameraAppSettings): CameraConstraints? =
-    perLensConstraints[cameraAppSettings.cameraLensFacing]
+/**
+ * 根据当前镜头朝向获取相机约束条件
+ *
+ * @param cameraAppSettings
+ * @return
+ */
+fun CameraSystemConstraints.forCurrentLens(
+    cameraAppSettings: CameraAppSettings
+): CameraConstraints? = perLensConstraints[cameraAppSettings.cameraLensFacing]
 
+/**
+ * 默认的相机应用设置实例
+ */
 val DEFAULT_CAMERA_APP_SETTINGS = CameraAppSettings()

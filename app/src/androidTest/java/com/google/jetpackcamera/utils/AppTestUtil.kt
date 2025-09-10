@@ -20,18 +20,23 @@ import android.database.ContentObserver
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.BaseColumns
 import android.provider.MediaStore
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.transform
+
+private const val TAG = "AppTestUtil"
 
 internal val APP_REQUIRED_PERMISSIONS: List<String> = buildList {
     add(android.Manifest.permission.CAMERA)
     add(android.Manifest.permission.RECORD_AUDIO)
     if (Build.VERSION.SDK_INT <= 28) {
         add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 }
 
@@ -42,6 +47,14 @@ val TEST_REQUIRED_PERMISSIONS: List<String> = buildList {
         add(android.Manifest.permission.READ_MEDIA_VIDEO)
     }
 }
+
+internal val PICTURES_DIR_PATH: String = Environment.getExternalStoragePublicDirectory(
+    Environment.DIRECTORY_PICTURES
+).path
+
+internal val MOVIES_DIR_PATH: String = Environment.getExternalStoragePublicDirectory(
+    Environment.DIRECTORY_MOVIES
+).path
 
 fun mediaStoreInsertedFlow(
     mediaUri: Uri,
@@ -118,7 +131,10 @@ fun mediaStoreInsertedFlow(
             override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
                 uris.forEach { uri ->
                     queryWrittenFiles(uri).forEach {
-                        trySend(it)
+                        val result = trySend(it)
+                        if (result.isFailure) {
+                            Log.d(TAG, "Media store change failed result: $result")
+                        }
                     }
                 }
             }

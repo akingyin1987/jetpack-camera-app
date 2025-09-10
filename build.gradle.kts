@@ -21,16 +21,18 @@ plugins {
     alias(libs.plugins.android.test) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.dagger.hilt.android) apply false
+//    alias(libs.plugins.kotlin.kapt) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.ksp) apply false
-
 }
 
 tasks.register<Copy>("installGitHooks") {
     println("Installing git hooks")
     from(rootProject.rootDir.resolve("hooks/pre-commit"))
     into(rootProject.rootDir.resolve(".git/hooks"))
-    fileMode = 7 * 64 + 7 * 8 + 5 // 0775 in decimal
+    filePermissions {
+        unix("0775")
+    }
 }
 
 gradle.taskGraph.whenReady {

@@ -22,25 +22,26 @@ import androidx.lifecycle.viewModelScope
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
+import com.google.jetpackcamera.model.AspectRatio
+import com.google.jetpackcamera.model.DarkMode
+import com.google.jetpackcamera.model.DynamicRange
+import com.google.jetpackcamera.model.FlashMode
+import com.google.jetpackcamera.model.LensFacing
+import com.google.jetpackcamera.model.StabilizationMode
+import com.google.jetpackcamera.model.StreamConfig
+import com.google.jetpackcamera.model.VideoQuality
 import com.google.jetpackcamera.settings.DisabledRationale.DeviceUnsupportedRationale
 import com.google.jetpackcamera.settings.DisabledRationale.FpsUnsupportedRationale
 import com.google.jetpackcamera.settings.DisabledRationale.StabilizationUnsupportedRationale
-import com.google.jetpackcamera.settings.model.AspectRatio
 import com.google.jetpackcamera.settings.model.CameraAppSettings
 import com.google.jetpackcamera.settings.model.CameraConstraints
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_15
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_30
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_60
 import com.google.jetpackcamera.settings.model.CameraConstraints.Companion.FPS_AUTO
-import com.google.jetpackcamera.settings.model.DarkMode
-import com.google.jetpackcamera.settings.model.DynamicRange
-import com.google.jetpackcamera.settings.model.FlashMode
-import com.google.jetpackcamera.settings.model.LensFacing
-import com.google.jetpackcamera.settings.model.StabilizationMode
-import com.google.jetpackcamera.settings.model.StreamConfig
-import com.google.jetpackcamera.settings.model.SystemConstraints
-import com.google.jetpackcamera.settings.model.VideoQuality
+import com.google.jetpackcamera.settings.model.CameraSystemConstraints
 import com.google.jetpackcamera.settings.model.forCurrentLens
+import com.google.jetpackcamera.settings.model.forDevice
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,8 +55,6 @@ import kotlinx.coroutines.launch
 
 private const val TAG = "SettingsViewModel"
 private val fpsOptions = setOf(FPS_15, FPS_30, FPS_60)
-val previewStabilizationUnsupportedFps = setOf(FPS_15, FPS_60)
-val videoStabilizationUnsupportedFps = setOf(FPS_60)
 
 /**
  * [ViewModel] for [SettingsScreen].
@@ -80,7 +79,7 @@ class SettingsViewModel @Inject constructor(
                 maxVideoDurationUiState = MaxVideoDurationUiState.Enabled(
                     updatedSettings.maxVideoDurationMillis
                 ),
-                flashUiState = FlashUiState.Enabled(updatedSettings.flashMode),
+                flashUiState = getFlashUiState(updatedSettings, constraints),
                 darkModeUiState = DarkModeUiState.Enabled(updatedSettings.darkMode),
                 audioUiState = getAudioUiState(
                     updatedSettings.audioEnabled,
@@ -102,6 +101,93 @@ class SettingsViewModel @Inject constructor(
 // Get UiStates for components
 //
 // ////////////////////////////////////////////////////////////
+
+    private fun getFlashUiState(
+        cameraAppSettings: CameraAppSettings,
+        constraints: CameraSystemConstraints
+    ): FlashUiState {
+        val currentSupportedFlashModes =
+            constraints.forCurrentLens(cameraAppSettings)?.supportedFlashModes ?: emptySet()
+
+        check(currentSupportedFlashModes.isNotEmpty()) {
+            "No flash modes supported. Should at least support OFF."
+        }
+        val deviceSupportedFlashModes: Set<FlashMode> = constraints.forDevice(
+            CameraConstraints::supportedFlashModes
+        )
+        // disable entire setting when:git status
+        //  device only supports off... device unsupported rationale
+        //  lens only supports off... lens unsupported rationale
+        if (deviceSupportedFlashModes == setOf(FlashMode.OFF)) {
+            return FlashUiState.Disabled(
+                DeviceUnsupportedRationale(R.string.flash_rationale_prefix)
+            )
+        } else if (deviceSupportedFlashModes == setOf(FlashMode.OFF)) {
+            return FlashUiState.Disabled(
+                getLensUnsupportedRationale(
+                    cameraAppSettings.cameraLensFacing,
+                    R.string.flash_rationale_prefix
+                )
+            )
+        }
+
+        // if options besides off are available for this lens...
+        val onSelectableState = if (currentSupportedFlashModes.contains(FlashMode.ON)) {
+            SingleSelectableState.Selectable
+        } else if (deviceSupportedFlashModes.contains(FlashMode.ON)) {
+            SingleSelectableState.Disabled(
+                getLensUnsupportedRationale(
+                    cameraAppSettings.cameraLensFacing,
+                    affectedSettingNameResId = R.string.flash_on_rationale_prefix
+                )
+            )
+        } else {
+            SingleSelectableState.Disabled(
+                DeviceUnsupportedRationale(R.string.flash_on_rationale_prefix)
+            )
+        }
+
+        val autoSelectableState = if (currentSupportedFlashModes.contains(FlashMode.AUTO)) {
+            SingleSelectableState.Selectable
+        } else if (deviceSupportedFlashModes.contains(FlashMode.AUTO)) {
+            SingleSelectableState.Disabled(
+                getLensUnsupportedRationale(
+                    cameraAppSettings.cameraLensFacing,
+                    affectedSettingNameResId = R.string.flash_auto_rationale_prefix
+                )
+            )
+        } else {
+            SingleSelectableState.Disabled(
+                DeviceUnsupportedRationale(R.string.flash_auto_rationale_prefix)
+            )
+        }
+
+        // check if llb constraints:
+        // llb must be supported by device
+        val llbSelectableState =
+            if (!currentSupportedFlashModes.contains(FlashMode.LOW_LIGHT_BOOST)) {
+                SingleSelectableState.Disabled(
+                    DeviceUnsupportedRationale(R.string.flash_llb_rationale_prefix)
+                )
+            } // llb unsupported above 30fps
+            else if (cameraAppSettings.targetFrameRate > FPS_30) {
+                SingleSelectableState.Disabled(
+                    FpsUnsupportedRationale(
+                        R.string.flash_llb_rationale_prefix,
+                        cameraAppSettings.targetFrameRate
+                    )
+                )
+            } else {
+                SingleSelectableState.Selectable
+            }
+
+        return FlashUiState.Enabled(
+            currentFlashMode = cameraAppSettings.flashMode,
+            onSelectableState = onSelectableState,
+            autoSelectableState = autoSelectableState,
+            lowLightSelectableState = llbSelectableState
+        )
+    }
 
     private fun getAudioUiState(isAudioEnabled: Boolean, permissionGranted: Boolean): AudioUiState =
         if (permissionGranted) {
@@ -137,7 +223,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun getStabilizationUiState(
-        systemConstraints: SystemConstraints,
+        systemConstraints: CameraSystemConstraints,
         cameraAppSettings: CameraAppSettings
     ): StabilizationUiState {
         val deviceStabilizations: Set<StabilizationMode> =
@@ -280,19 +366,19 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun getVideoQualityUiState(
-        systemConstraints: SystemConstraints,
+        systemConstraints: CameraSystemConstraints,
         cameraAppSettings: CameraAppSettings
     ): VideoQualityUiState {
         val cameraConstraints = systemConstraints.forCurrentLens(cameraAppSettings)
-        val supportedVideoQualities: List<VideoQuality>? =
-            cameraConstraints?.supportedVideoQualitiesMap?.get(cameraAppSettings.dynamicRange)
-        return if (!supportedVideoQualities.isNullOrEmpty()) {
+        val supportedVideoQualities: List<VideoQuality> =
+            cameraConstraints?.supportedVideoQualitiesMap?.get(
+                cameraAppSettings.dynamicRange
+            ) ?: listOf(VideoQuality.UNSPECIFIED)
+
+        return if (supportedVideoQualities != listOf(VideoQuality.UNSPECIFIED)) {
             VideoQualityUiState.Enabled(
                 currentVideoQuality = cameraAppSettings.videoQuality,
-                videoQualityAutoState = getSingleVideoQualityState(
-                    VideoQuality.UNSPECIFIED,
-                    supportedVideoQualities
-                ),
+                videoQualityAutoState = SingleSelectableState.Selectable,
                 videoQualitySDState = getSingleVideoQualityState(
                     VideoQuality.SD,
                     supportedVideoQualities
@@ -321,13 +407,8 @@ class SettingsViewModel @Inject constructor(
 
     private fun getSingleVideoQualityState(
         videoQuality: VideoQuality,
-        supportedVideQualities: List<VideoQuality>?
-    ): SingleSelectableState = if (videoQuality == VideoQuality.UNSPECIFIED ||
-        (
-            !supportedVideQualities.isNullOrEmpty() &&
-                supportedVideQualities.contains(videoQuality)
-            )
-    ) {
+        supportedVideQualities: List<VideoQuality>
+    ): SingleSelectableState = if (supportedVideQualities.contains(videoQuality)) {
         SingleSelectableState.Selectable
     } else {
         SingleSelectableState.Disabled(
@@ -344,12 +425,12 @@ class SettingsViewModel @Inject constructor(
      * support the other settings
      * */
     private fun getLensFlipUiState(
-        systemConstraints: SystemConstraints,
+        systemConstraints: CameraSystemConstraints,
         currentSettings: CameraAppSettings
     ): FlipLensUiState {
         // if there is only one lens, stop here
         if (!with(systemConstraints.availableLenses) {
-                size > 1 && contains(com.google.jetpackcamera.settings.model.LensFacing.FRONT)
+                size > 1 && contains(LensFacing.FRONT)
             }
         ) {
             return FlipLensUiState.Disabled(
@@ -406,6 +487,7 @@ class SettingsViewModel @Inject constructor(
             )
         }
 
+        // if other lens doesnt support the video quality
         if (currentSettings.videoQuality != VideoQuality.UNSPECIFIED &&
             newLensConstraints.supportedVideoQualitiesMap[DynamicRange.SDR]?.contains(
                 currentSettings.videoQuality
@@ -427,7 +509,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun getFpsUiState(
-        systemConstraints: SystemConstraints,
+        systemConstraints: CameraSystemConstraints,
         cameraAppSettings: CameraAppSettings
     ): FpsUiState {
         val optionConstraintRationale: MutableMap<Int, SingleSelectableState> = mutableMapOf()
@@ -514,6 +596,10 @@ class SettingsViewModel @Inject constructor(
 // ////////////////////////////////////////////////////////////
 //
 // Settings Repository functions
+// ------------------------------------------------------------
+// Note: These do not update the running camera state. Each
+// setting should be applied individually (via diff) in
+// PreviewViewModel.
 //
 // ////////////////////////////////////////////////////////////
 

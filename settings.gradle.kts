@@ -32,7 +32,7 @@ dependencyResolutionManagement {
 
         maven {setUrl("https://maven.scijava.org/content/repositories/public")}
         maven {
-            setUrl("https://androidx.dev/snapshots/builds/12696077/artifacts/repository")
+            setUrl("https://androidx.dev/snapshots/builds/13672667/artifacts/repository")
         }
         google()
         mavenCentral()
@@ -44,6 +44,16 @@ include(":feature:preview")
 include(":core:camera")
 include(":feature:settings")
 include(":data:settings")
+include(":data:media")
 include(":core:common")
 include(":benchmark")
 include(":feature:permissions")
+include(":feature:postcapture")
+include(":ui:uistate")
+include(":ui:uistateadapter")
+include(":ui:uistate:capture")
+include(":ui:uistateadapter:capture")
+include(":ui:components")
+include(":ui:components:capture")
+include(":data:model")
+include(":core:model")

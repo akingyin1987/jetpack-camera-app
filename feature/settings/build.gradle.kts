@@ -20,6 +20,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.dagger.hilt.android)
+
 }
 
 android {
@@ -119,6 +120,7 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.kotlin.lite)
 
+    implementation(project(":core:model"))
     implementation(project(":data:settings"))
 }
 

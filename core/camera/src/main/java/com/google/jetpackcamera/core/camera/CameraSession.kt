@@ -25,7 +25,6 @@ import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.TotalCaptureResult
-import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.provider.MediaStore
@@ -66,23 +65,27 @@ import androidx.camera.video.VideoRecordEvent.Finalize.ERROR_NONE
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.lifecycle.asFlow
+import com.google.jetpackcamera.core.camera.CameraCoreUtil.getDefaultMediaSaveLocation
 import com.google.jetpackcamera.core.camera.effects.SingleSurfaceForcingEffect
-import com.google.jetpackcamera.settings.model.AspectRatio
-import com.google.jetpackcamera.settings.model.CaptureMode
-import com.google.jetpackcamera.settings.model.DeviceRotation
-import com.google.jetpackcamera.settings.model.DynamicRange
-import com.google.jetpackcamera.settings.model.FlashMode
-import com.google.jetpackcamera.settings.model.ImageOutputFormat
-import com.google.jetpackcamera.settings.model.LensFacing
-import com.google.jetpackcamera.settings.model.LowLightBoostState
-import com.google.jetpackcamera.settings.model.StabilizationMode
-import com.google.jetpackcamera.settings.model.StreamConfig
-import com.google.jetpackcamera.settings.model.VideoQuality
-import com.google.jetpackcamera.settings.model.VideoQuality.FHD
-import com.google.jetpackcamera.settings.model.VideoQuality.HD
-import com.google.jetpackcamera.settings.model.VideoQuality.SD
-import com.google.jetpackcamera.settings.model.VideoQuality.UHD
+import com.google.jetpackcamera.model.AspectRatio
+import com.google.jetpackcamera.model.CaptureMode
+import com.google.jetpackcamera.model.DeviceRotation
+import com.google.jetpackcamera.model.DynamicRange
+import com.google.jetpackcamera.model.FlashMode
+import com.google.jetpackcamera.model.ImageOutputFormat
+import com.google.jetpackcamera.model.LensFacing
+import com.google.jetpackcamera.model.LowLightBoostState
+import com.google.jetpackcamera.model.SaveLocation
+import com.google.jetpackcamera.model.StabilizationMode
+import com.google.jetpackcamera.model.StreamConfig
+import com.google.jetpackcamera.model.TestPattern
+import com.google.jetpackcamera.model.VideoQuality
+import com.google.jetpackcamera.model.VideoQuality.FHD
+import com.google.jetpackcamera.model.VideoQuality.HD
+import com.google.jetpackcamera.model.VideoQuality.SD
+import com.google.jetpackcamera.model.VideoQuality.UHD
 import java.io.File
+import java.io.FileNotFoundException
 import java.util.Date
 import java.util.concurrent.Executor
 import kotlin.coroutines.ContinuationInterceptor
@@ -102,6 +105,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -120,10 +125,10 @@ internal suspend fun runSingleCameraSession(
     onImageCaptureCreated: (ImageCapture) -> Unit = {}
 ) = coroutineScope {
     Log.d(TAG, "Starting new single camera session")
-
     val initialCameraSelector = transientSettings.filterNotNull().first()
         .primaryLensFacing.toCameraSelector()
 
+    // only create video use case in standard or video_only
     val videoCaptureUseCase = when (sessionSettings.captureMode) {
         CaptureMode.STANDARD, CaptureMode.VIDEO_ONLY ->
             createVideoUseCase(
@@ -150,80 +155,132 @@ internal suspend fun runSingleCameraSession(
         )
     }
 
-    transientSettings.filterNotNull().distinctUntilChanged { old, new ->
-        old.primaryLensFacing == new.primaryLensFacing
-    }.collectLatest { currentTransientSettings ->
-        cameraProvider.unbindAll()
-        val currentCameraSelector = currentTransientSettings.primaryLensFacing.toCameraSelector()
-        val useCaseGroup = createUseCaseGroup(
-            cameraInfo = cameraProvider.getCameraInfo(currentCameraSelector),
-            videoCaptureUseCase = videoCaptureUseCase,
-            initialTransientSettings = currentTransientSettings,
-            stabilizationMode = sessionSettings.stabilizationMode,
-            aspectRatio = sessionSettings.aspectRatio,
-            dynamicRange = sessionSettings.dynamicRange,
-            imageFormat = sessionSettings.imageFormat,
-            captureMode = sessionSettings.captureMode,
-            effect = when (sessionSettings.streamConfig) {
-                StreamConfig.SINGLE_STREAM -> SingleSurfaceForcingEffect(this@coroutineScope)
-                StreamConfig.MULTI_STREAM -> null
-            }
-        ).apply {
-            getImageCapture()?.let(onImageCaptureCreated)
-        }
-
-        cameraProvider.runWith(
-            currentCameraSelector,
-            useCaseGroup
-        ) { camera ->
-            Log.d(TAG, "Camera session started")
-
-            launch {
-                processFocusMeteringEvents(camera.cameraControl)
+    transientSettings
+        .filterNotNull()
+        .distinctUntilChanged { old, new -> old.primaryLensFacing == new.primaryLensFacing }
+        .collectLatest { currentTransientSettings ->
+            cameraProvider.unbindAll()
+            val currentCameraSelector = currentTransientSettings.primaryLensFacing
+                .toCameraSelector()
+            val useCaseGroup = createUseCaseGroup(
+                cameraInfo = cameraProvider.getCameraInfo(currentCameraSelector),
+                videoCaptureUseCase = videoCaptureUseCase,
+                initialTransientSettings = currentTransientSettings,
+                stabilizationMode = sessionSettings.stabilizationMode,
+                aspectRatio = sessionSettings.aspectRatio,
+                dynamicRange = sessionSettings.dynamicRange,
+                imageFormat = sessionSettings.imageFormat,
+                captureMode = sessionSettings.captureMode,
+                effect = when (sessionSettings.streamConfig) {
+                    StreamConfig.SINGLE_STREAM -> SingleSurfaceForcingEffect(this@coroutineScope)
+                    StreamConfig.MULTI_STREAM -> null
+                }
+            ).apply {
+                getImageCapture()?.let(onImageCaptureCreated)
             }
 
-            launch {
-                camera.cameraInfo.torchState.asFlow().collectLatest { torchState ->
-                    currentCameraState.update { old ->
-                        old.copy(torchEnabled = torchState == TorchState.ON)
+            cameraProvider.runWith(
+                currentCameraSelector,
+                useCaseGroup
+            ) { camera ->
+                Log.d(TAG, "Camera session started")
+                launch {
+                    processFocusMeteringEvents(camera.cameraControl)
+                }
+
+                launch {
+                    camera.cameraInfo.torchState.asFlow().collectLatest { torchState ->
+                        currentCameraState.update { old ->
+                            old.copy(torchEnabled = torchState == TorchState.ON)
+                        }
                     }
                 }
-            }
 
-            if (videoCaptureUseCase != null) {
-                val videoQuality = getVideoQualityFromResolution(
-                    videoCaptureUseCase.resolutionInfo?.resolution
-                )
-                if (videoQuality != sessionSettings.videoQuality) {
-                    Log.e(
-                        TAG,
-                        "Failed to select video quality: $sessionSettings.videoQuality. " +
-                            "Fallback: $videoQuality"
+                if (videoCaptureUseCase != null) {
+                    val videoQuality = getVideoQualityFromResolution(
+                        videoCaptureUseCase.resolutionInfo?.resolution
                     )
-                }
-                launch {
-                    currentCameraState.update { old ->
-                        old.copy(
-                            videoQualityInfo = VideoQualityInfo(
-                                videoQuality,
-                                getWidthFromCropRect(videoCaptureUseCase.resolutionInfo?.cropRect),
-                                getHeightFromCropRect(videoCaptureUseCase.resolutionInfo?.cropRect)
-                            )
+                    if (videoQuality != sessionSettings.videoQuality) {
+                        Log.e(
+                            TAG,
+                            "Failed to select video quality: $sessionSettings.videoQuality. " +
+                                "Fallback: $videoQuality"
                         )
                     }
+                    launch {
+                        currentCameraState.update { old ->
+                            old.copy(
+                                videoQualityInfo = VideoQualityInfo(
+                                    videoQuality,
+                                    getWidthFromCropRect(
+                                        videoCaptureUseCase.resolutionInfo?.cropRect
+                                    ),
+                                    getHeightFromCropRect(
+                                        videoCaptureUseCase.resolutionInfo?.cropRect
+                                    )
+                                )
+                            )
+                        }
+                    }
                 }
-            }
 
-            applyDeviceRotation(currentTransientSettings.deviceRotation, useCaseGroup)
-            setZoomScale(camera, 1f)
-            processTransientSettingEvents(
-                camera,
-                useCaseGroup,
-                currentTransientSettings,
-                transientSettings
-            )
+                // update camerastate to mirror current zoomstate
+
+                launch {
+                    camera.cameraInfo.zoomState
+                        .asFlow()
+                        .filterNotNull()
+                        .distinctUntilChanged()
+                        .onCompletion {
+                            // reset current camera state when changing cameras.
+                            currentCameraState.update { old ->
+                                old.copy(
+                                    zoomRatios = emptyMap(),
+                                    linearZoomScales = emptyMap()
+                                )
+                            }
+                        }
+                        .collectLatest { zoomState ->
+                            // TODO(b/405987189): remove checks after buggy zoomState is fixed
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                                if (zoomState.zoomRatio != 1.0f ||
+                                    zoomState.zoomRatio == currentTransientSettings
+                                        .zoomRatios[currentTransientSettings.primaryLensFacing]
+                                ) {
+                                    currentCameraState.update { old ->
+                                        old.copy(
+                                            zoomRatios = old.zoomRatios
+                                                .toMutableMap()
+                                                .apply {
+                                                    put(
+                                                        camera.cameraInfo.appLensFacing,
+                                                        zoomState.zoomRatio
+                                                    )
+                                                }.toMap(),
+                                            linearZoomScales = old.linearZoomScales
+                                                .toMutableMap()
+                                                .apply {
+                                                    put(
+                                                        camera.cameraInfo.appLensFacing,
+                                                        zoomState.linearZoom
+                                                    )
+                                                }.toMap()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                }
+
+                applyDeviceRotation(currentTransientSettings.deviceRotation, useCaseGroup)
+                processTransientSettingEvents(
+                    camera,
+                    useCaseGroup,
+                    currentTransientSettings,
+                    transientSettings
+                )
+            }
         }
-    }
 }
 
 context(CameraSessionContext)
@@ -234,6 +291,14 @@ internal suspend fun processTransientSettingEvents(
     initialTransientSettings: TransientSessionSettings,
     transientSettings: StateFlow<TransientSessionSettings?>
 ) {
+    // Immediately Apply camera zoom from current settings when opening a new camera
+    camera.cameraControl.setZoomRatio(
+        initialTransientSettings.zoomRatios[camera.cameraInfo.appLensFacing] ?: 1f
+    )
+
+    val camera2OptionsBuilder = CaptureRequestOptions.Builder()
+    updateCamera2RequestOptions(camera, null, initialTransientSettings, camera2OptionsBuilder)
+
     var prevTransientSettings = initialTransientSettings
     val isFrontFacing = camera.cameraInfo.appLensFacing == LensFacing.FRONT
     var torchOn = false
@@ -245,22 +310,16 @@ internal suspend fun processTransientSettingEvents(
     }
     combine(
         transientSettings.filterNotNull(),
-        currentCameraState.asStateFlow()
-    ) { newTransientSettings, cameraState ->
-        return@combine Pair(newTransientSettings, cameraState)
-    }.collectLatest {
-        val newTransientSettings = it.first
-        val cameraState = it.second
+        currentCameraState.asStateFlow().transform { emit(it.videoRecordingState) }
+    ) { newTransientSettings, videoRecordingState ->
+        return@combine Pair(newTransientSettings, videoRecordingState)
+    }.collect { transientPair ->
+        val newTransientSettings = transientPair.first
+        val videoRecordingState = transientPair.second
 
-        // Apply camera zoom
-        if (prevTransientSettings.zoomScale != newTransientSettings.zoomScale
-        ) {
-            setZoomScale(camera, newTransientSettings.zoomScale)
-        }
-
-        // todo(): How should we handle torch on Auto FlashMode?
+        // todo(): handle torch on Auto FlashMode
         // enable torch only while recording is in progress
-        if ((cameraState.videoRecordingState !is VideoRecordingState.Inactive) &&
+        if ((videoRecordingState !is VideoRecordingState.Inactive) &&
             newTransientSettings.flashMode == FlashMode.ON &&
             !isFrontFacing
         ) {
@@ -280,28 +339,6 @@ internal suspend fun processTransientSettingEvents(
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM &&
-            prevTransientSettings.flashMode != newTransientSettings.flashMode
-        ) {
-            when (newTransientSettings.flashMode) {
-                FlashMode.LOW_LIGHT_BOOST -> {
-                    val captureRequestOptions = CaptureRequestOptions.Builder()
-                        .setCaptureRequestOption(
-                            CaptureRequest.CONTROL_AE_MODE,
-                            CameraMetadata.CONTROL_AE_MODE_ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY
-                        )
-                        .build()
-
-                    Camera2CameraControl.from(camera.cameraControl)
-                        .addCaptureRequestOptions(captureRequestOptions)
-                }
-                else -> {
-                    Camera2CameraControl.from(camera.cameraControl)
-                        .setCaptureRequestOptions(CaptureRequestOptions.Builder().build())
-                }
-            }
-        }
-
         if (prevTransientSettings.deviceRotation
             != newTransientSettings.deviceRotation
         ) {
@@ -314,25 +351,98 @@ internal suspend fun processTransientSettingEvents(
             applyDeviceRotation(newTransientSettings.deviceRotation, useCaseGroup)
         }
 
+        // setzoomratio when the primary zoom value changes.
+        if (prevTransientSettings.primaryLensFacing == newTransientSettings.primaryLensFacing &&
+            prevTransientSettings.zoomRatios[prevTransientSettings.primaryLensFacing] !=
+            newTransientSettings.zoomRatios[newTransientSettings.primaryLensFacing]
+        ) {
+            newTransientSettings.primaryLensFacing.let {
+                camera.cameraControl.setZoomRatio(newTransientSettings.zoomRatios[it] ?: 1f)
+            }
+        }
+
+        updateCamera2RequestOptions(
+            camera,
+            prevTransientSettings,
+            newTransientSettings,
+            camera2OptionsBuilder
+        )
+
         prevTransientSettings = newTransientSettings
     }
 }
 
-context(CameraSessionContext)
-internal fun setZoomScale(camera: Camera, zoomScaleRelative: Float) {
-    camera.cameraInfo.zoomState.value?.let { zoomState ->
-        transientSettings.value?.let { transientSettings ->
-            val finalScale =
-                (zoomScale.value * zoomScaleRelative).coerceIn(
-                    zoomState.minZoomRatio,
-                    zoomState.maxZoomRatio
+@ExperimentalCamera2Interop
+private fun updateCamera2RequestOptions(
+    camera: Camera,
+    prevTransientSettings: TransientSessionSettings?,
+    newTransientSettings: TransientSessionSettings,
+    optionsBuilder: CaptureRequestOptions.Builder
+) {
+    var needsUpdate = false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM &&
+        prevTransientSettings?.flashMode != newTransientSettings.flashMode
+    ) {
+        when (newTransientSettings.flashMode) {
+            FlashMode.LOW_LIGHT_BOOST -> {
+                optionsBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AE_MODE,
+                    CameraMetadata.CONTROL_AE_MODE_ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY
                 )
-            camera.cameraControl.setZoomRatio(finalScale)
-            zoomScale.update { finalScale }
-            currentCameraState.update { old ->
-                old.copy(zoomScale = finalScale)
+            }
+            else -> {
+                optionsBuilder.clearCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE)
             }
         }
+        needsUpdate = true
+    }
+
+    val newTestPattern = newTransientSettings.testPattern
+    if (prevTransientSettings?.testPattern != newTestPattern) {
+        val (mode: Int?, data: IntArray?) = when (newTestPattern) {
+            TestPattern.Off -> Pair(null, null)
+            TestPattern.ColorBars -> Pair(CameraMetadata.SENSOR_TEST_PATTERN_MODE_COLOR_BARS, null)
+            TestPattern.ColorBarsFadeToGray -> Pair(
+                CameraMetadata.SENSOR_TEST_PATTERN_MODE_COLOR_BARS_FADE_TO_GRAY,
+                null
+            )
+            TestPattern.PN9 -> Pair(CameraMetadata.SENSOR_TEST_PATTERN_MODE_PN9, null)
+            TestPattern.Custom1 -> Pair(CameraMetadata.SENSOR_TEST_PATTERN_MODE_CUSTOM1, null)
+            is TestPattern.SolidColor -> {
+                Pair(
+                    CameraMetadata.SENSOR_TEST_PATTERN_MODE_SOLID_COLOR,
+                    intArrayOf(
+                        newTestPattern.red.toInt(),
+                        newTestPattern.greenEven.toInt(),
+                        newTestPattern.greenOdd.toInt(),
+                        newTestPattern.blue.toInt()
+                    )
+                )
+            }
+        }
+        if (mode != null) {
+            optionsBuilder.setCaptureRequestOption(
+                CaptureRequest.SENSOR_TEST_PATTERN_MODE,
+                mode
+            )
+        } else {
+            optionsBuilder.clearCaptureRequestOption(CaptureRequest.SENSOR_TEST_PATTERN_MODE)
+        }
+
+        if (data != null) {
+            optionsBuilder.setCaptureRequestOption(
+                CaptureRequest.SENSOR_TEST_PATTERN_DATA,
+                data
+            )
+        } else {
+            optionsBuilder.clearCaptureRequestOption(CaptureRequest.SENSOR_TEST_PATTERN_DATA)
+        }
+        needsUpdate = true
+    }
+
+    if (needsUpdate) {
+        Camera2CameraControl.from(camera.cameraControl)
+            .setCaptureRequestOptions(optionsBuilder.build())
     }
 }
 
@@ -377,6 +487,8 @@ internal fun createUseCaseGroup(
             aspectRatio,
             stabilizationMode
         )
+
+    // only create image use case in image or standard
     val imageCaptureUseCase = if (captureMode != CaptureMode.VIDEO_ONLY) {
         createImageUseCase(cameraInfo, aspectRatio, dynamicRange, imageFormat)
     } else {
@@ -404,20 +516,10 @@ internal fun createUseCaseGroup(
             ).build()
         )
         addUseCase(previewUseCase)
-        imageCaptureUseCase?.let {
-            if (dynamicRange == DynamicRange.SDR ||
-                imageFormat == ImageOutputFormat.JPEG_ULTRA_HDR
-            ) {
-                addUseCase(imageCaptureUseCase)
-            }
-        }
 
-        // Not to bind VideoCapture when Ultra HDR is enabled to keep the app design simple.
-        videoCaptureUseCase?.let {
-            if (imageFormat == ImageOutputFormat.JPEG) {
-                addUseCase(videoCaptureUseCase)
-            }
-        }
+        // image and video use cases are only created if supported by the configuration
+        imageCaptureUseCase?.let { addUseCase(imageCaptureUseCase) }
+        videoCaptureUseCase?.let { addUseCase(videoCaptureUseCase) }
 
         effect?.let { addEffect(it) }
     }.build()
@@ -603,7 +705,7 @@ private fun setFlashModeInternal(
             ) {
                 Log.d(TAG, "ImageCapture.ScreenFlash: apply")
                 screenFlashEvents.trySend(
-                    CameraUseCase.ScreenFlashEvent(CameraUseCase.ScreenFlashEvent.Type.APPLY_UI) {
+                    CameraSystem.ScreenFlashEvent(CameraSystem.ScreenFlashEvent.Type.APPLY_UI) {
                         listener.onCompleted()
                     }
                 )
@@ -612,7 +714,7 @@ private fun setFlashModeInternal(
             override fun clear() {
                 Log.d(TAG, "ImageCapture.ScreenFlash: clear")
                 screenFlashEvents.trySend(
-                    CameraUseCase.ScreenFlashEvent(CameraUseCase.ScreenFlashEvent.Type.CLEAR_UI) {}
+                    CameraSystem.ScreenFlashEvent(CameraSystem.ScreenFlashEvent.Type.CLEAR_UI) {}
                 )
             }
         }
@@ -643,60 +745,81 @@ private fun getPendingRecording(
     videoCaptureUseCase: VideoCapture<Recorder>,
     maxDurationMillis: Long,
     captureTypeSuffix: String,
-    videoCaptureUri: Uri?,
-    shouldUseUri: Boolean,
-    onVideoRecord: (CameraUseCase.OnVideoRecordEvent) -> Unit
+    saveLocation: SaveLocation,
+    onVideoRecord: (OnVideoRecordEvent) -> Unit
 ): PendingRecording? {
     Log.d(TAG, "getPendingRecording")
-
-    return if (shouldUseUri) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                videoCaptureUseCase.output.prepareRecording(
-                    context,
-                    FileDescriptorOutputOptions.Builder(
-                        context.applicationContext.contentResolver.openFileDescriptor(
-                            videoCaptureUri!!,
-                            "rw"
-                        )!!
-                    ).build()
-                )
-            } catch (e: Exception) {
-                onVideoRecord(
-                    CameraUseCase.OnVideoRecordEvent.OnVideoRecordError(e)
-                )
-                null
-            }
-        } else {
-            if (videoCaptureUri?.scheme == "file") {
-                val fileOutputOptions = FileOutputOptions.Builder(
-                    File(videoCaptureUri.path!!)
-                ).build()
-                videoCaptureUseCase.output.prepareRecording(context, fileOutputOptions)
-            } else {
-                onVideoRecord(
-                    CameraUseCase.OnVideoRecordEvent.OnVideoRecordError(
-                        RuntimeException("Uri scheme not supported.")
+    return when (saveLocation) {
+        is SaveLocation.Explicit ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    context.applicationContext.contentResolver.openFileDescriptor(
+                        saveLocation.locationUri,
+                        "rw"
+                    )?.let { pfd ->
+                        videoCaptureUseCase.output.prepareRecording(
+                            context,
+                            FileDescriptorOutputOptions.Builder(pfd).build()
+                        )
+                    } ?: run {
+                        onVideoRecord(
+                            OnVideoRecordEvent.OnVideoRecordError(
+                                FileNotFoundException(
+                                    "Failed to open file descriptor " +
+                                        "for URI: ${saveLocation.locationUri}"
+                                )
+                            )
+                        )
+                        null
+                    }
+                } catch (e: Exception) {
+                    onVideoRecord(
+                        OnVideoRecordEvent.OnVideoRecordError(e)
                     )
+                    null
+                }
+            } else {
+                if (saveLocation.locationUri.scheme == "file") {
+                    saveLocation.locationUri.path?.let { path ->
+                        val fileOutputOptions = FileOutputOptions.Builder(File(path)).build()
+                        videoCaptureUseCase.output.prepareRecording(context, fileOutputOptions)
+                    } ?: run {
+                        onVideoRecord(
+                            OnVideoRecordEvent.OnVideoRecordError(
+                                RuntimeException("Uri path is null for file scheme.")
+                            )
+                        )
+                        null
+                    }
+                } else {
+                    onVideoRecord(
+                        OnVideoRecordEvent.OnVideoRecordError(
+                            RuntimeException("Uri scheme not supported.")
+                        )
+                    )
+                    null
+                }
+            }
+
+        is SaveLocation.Default -> {
+            val name = "JCA-recording-${Date()}-$captureTypeSuffix.mp4"
+            val contentValues =
+                ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, name)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // Android 10+
+                        put(MediaStore.Video.Media.RELATIVE_PATH, getDefaultMediaSaveLocation())
+                    }
+                }
+            val mediaStoreOutput =
+                MediaStoreOutputOptions.Builder(
+                    context.contentResolver,
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI
                 )
-                null
-            }
+                    .setDurationLimitMillis(maxDurationMillis)
+                    .setContentValues(contentValues)
+                    .build()
+            videoCaptureUseCase.output.prepareRecording(context, mediaStoreOutput)
         }
-    } else {
-        val name = "JCA-recording-${Date()}-$captureTypeSuffix.mp4"
-        val contentValues =
-            ContentValues().apply {
-                put(MediaStore.Video.Media.DISPLAY_NAME, name)
-            }
-        val mediaStoreOutput =
-            MediaStoreOutputOptions.Builder(
-                context.contentResolver,
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            )
-                .setDurationLimitMillis(maxDurationMillis)
-                .setContentValues(contentValues)
-                .build()
-        videoCaptureUseCase.output.prepareRecording(context, mediaStoreOutput)
     }
 }
 
@@ -706,13 +829,12 @@ private suspend fun startVideoRecordingInternal(
     context: Context,
     pendingRecord: PendingRecording,
     maxDurationMillis: Long,
-    onVideoRecord: (CameraUseCase.OnVideoRecordEvent) -> Unit
+    initialRecordingSettings: InitialRecordingSettings,
+    onVideoRecord: (OnVideoRecordEvent) -> Unit
 ): Recording {
-    Log.d(TAG, "recordVideo")
-    // todo(b/336886716): default setting to enable or disable audio when permission is granted
     // set the camerastate to starting
     currentCameraState.update { old ->
-        old.copy(videoRecordingState = VideoRecordingState.Starting)
+        old.copy(videoRecordingState = VideoRecordingState.Starting(initialRecordingSettings))
     }
 
     // ok. there is a difference between MUTING and ENABLING audio
@@ -727,7 +849,6 @@ private suspend fun startVideoRecordingInternal(
 
     pendingRecord.apply {
         if (isAudioGranted) {
-            Log.d(TAG, "INITIAL AUDIO $isInitialAudioEnabled")
             withAudioEnabled(isInitialAudioEnabled)
         }
     }
@@ -823,7 +944,7 @@ private suspend fun startVideoRecordingInternal(
                             )
                         }
                         onVideoRecord(
-                            CameraUseCase.OnVideoRecordEvent.OnVideoRecorded(
+                            OnVideoRecordEvent.OnVideoRecorded(
                                 onVideoRecordEvent.outputResults.outputUri
                             )
                         )
@@ -840,7 +961,7 @@ private suspend fun startVideoRecordingInternal(
                         }
 
                         onVideoRecord(
-                            CameraUseCase.OnVideoRecordEvent.OnVideoRecorded(
+                            OnVideoRecordEvent.OnVideoRecorded(
                                 onVideoRecordEvent.outputResults.outputUri
                             )
                         )
@@ -848,7 +969,7 @@ private suspend fun startVideoRecordingInternal(
 
                     else -> {
                         onVideoRecord(
-                            CameraUseCase.OnVideoRecordEvent.OnVideoRecordError(
+                            OnVideoRecordEvent.OnVideoRecordError(
                                 RuntimeException(
                                     "Recording finished with error: ${onVideoRecordEvent.error}",
                                     onVideoRecordEvent.cause
@@ -879,10 +1000,9 @@ private suspend fun runVideoRecording(
     context: Context,
     maxDurationMillis: Long,
     transientSettings: StateFlow<TransientSessionSettings?>,
-    videoCaptureUri: Uri?,
+    saveLocation: SaveLocation,
     videoControlEvents: Channel<VideoCaptureControlEvent>,
-    shouldUseUri: Boolean,
-    onVideoRecord: (CameraUseCase.OnVideoRecordEvent) -> Unit
+    onVideoRecord: (OnVideoRecordEvent) -> Unit
 ) = coroutineScope {
     var currentSettings = transientSettings.filterNotNull().first()
 
@@ -891,8 +1011,7 @@ private suspend fun runVideoRecording(
         videoCapture,
         maxDurationMillis,
         captureTypeSuffix,
-        videoCaptureUri,
-        shouldUseUri,
+        saveLocation,
         onVideoRecord
     )?.let {
         startVideoRecordingInternal(
@@ -900,7 +1019,12 @@ private suspend fun runVideoRecording(
             context = context,
             pendingRecord = it,
             maxDurationMillis = maxDurationMillis,
-            onVideoRecord = onVideoRecord
+            onVideoRecord = onVideoRecord,
+            initialRecordingSettings = InitialRecordingSettings(
+                isAudioEnabled = currentSettings.isAudioEnabled,
+                lensFacing = currentSettings.primaryLensFacing,
+                zoomRatios = currentSettings.zoomRatios
+            )
         ).use { recording ->
             val recordingSettingsUpdater = launch {
                 fun TransientSessionSettings.isFlashModeOn() = flashMode == FlashMode.ON
@@ -980,9 +1104,8 @@ internal suspend fun processVideoControlEvents(
                     context,
                     event.maxVideoDuration,
                     transientSettings,
-                    event.videoCaptureUri,
+                    event.saveLocation,
                     videoCaptureControlEvents,
-                    event.shouldUseUri,
                     event.onVideoRecord
                 )
             }
@@ -1026,8 +1149,36 @@ private fun Preview.Builder.updateCameraStateWithCaptureResults(
                         }
                     }
                 }
-
                 val logicalCameraId = session.device.id
+
+                // todo(b/405987189): remove completely after buggy zoomState is fixed
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    logicalCameraId == targetCameraLogicalId
+                ) {
+                    // update camerastate with zoom ratio
+                    val newZoomRatio = result.get(CaptureResult.CONTROL_ZOOM_RATIO)
+                    currentCameraState.update { old ->
+                        if (newZoomRatio != null &&
+                            old.zoomRatios[targetCameraInfo.appLensFacing] != newZoomRatio
+                        ) {
+                            Log.d(
+                                TAG,
+                                "newZoomRatio: $newZoomRatio on lens ${targetCameraInfo.appLensFacing}"
+                            )
+
+                            old.copy(
+                                zoomRatios = old.zoomRatios
+                                    .toMutableMap()
+                                    .apply {
+                                        put(targetCameraInfo.appLensFacing, newZoomRatio)
+                                    }.toMap()
+                            )
+                        } else {
+                            old
+                        }
+                    }
+                }
+
                 if (logicalCameraId != targetCameraLogicalId) return
                 try {
                     val physicalCameraId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

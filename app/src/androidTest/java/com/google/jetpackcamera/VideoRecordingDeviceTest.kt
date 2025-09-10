@@ -17,7 +17,6 @@ package com.google.jetpackcamera
 
 import android.app.Activity
 import android.net.Uri
-import android.os.Environment
 import android.provider.MediaStore
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -28,21 +27,24 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import androidx.test.uiautomator.UiDevice
 import com.google.common.truth.Truth
-import com.google.jetpackcamera.feature.preview.ui.CAPTURE_BUTTON
-import com.google.jetpackcamera.feature.preview.ui.IMAGE_CAPTURE_EXTERNAL_UNSUPPORTED_TAG
-import com.google.jetpackcamera.feature.preview.ui.VIDEO_CAPTURE_FAILURE_TAG
-import com.google.jetpackcamera.feature.preview.ui.VIDEO_CAPTURE_SUCCESS_TAG
+import com.google.jetpackcamera.ui.components.capture.CAPTURE_BUTTON
+import com.google.jetpackcamera.ui.components.capture.VIDEO_CAPTURE_FAILURE_TAG
+import com.google.jetpackcamera.ui.components.capture.VIDEO_CAPTURE_SUCCESS_TAG
 import com.google.jetpackcamera.utils.APP_START_TIMEOUT_MILLIS
-import com.google.jetpackcamera.utils.IMAGE_CAPTURE_TIMEOUT_MILLIS
+import com.google.jetpackcamera.utils.IMAGE_PREFIX
+import com.google.jetpackcamera.utils.MOVIES_DIR_PATH
 import com.google.jetpackcamera.utils.TEST_REQUIRED_PERMISSIONS
 import com.google.jetpackcamera.utils.VIDEO_CAPTURE_TIMEOUT_MILLIS
+import com.google.jetpackcamera.utils.VIDEO_PREFIX
 import com.google.jetpackcamera.utils.deleteFilesInDirAfterTimestamp
-import com.google.jetpackcamera.utils.doesImageFileExist
+import com.google.jetpackcamera.utils.doesMediaExist
 import com.google.jetpackcamera.utils.getSingleImageCaptureIntent
 import com.google.jetpackcamera.utils.getTestUri
 import com.google.jetpackcamera.utils.longClickForVideoRecording
-import com.google.jetpackcamera.utils.runMediaStoreAutoDeleteScenarioTest
+import com.google.jetpackcamera.utils.pressAndDragToLockVideoRecording
+import com.google.jetpackcamera.utils.runMainActivityMediaStoreAutoDeleteScenarioTest
 import com.google.jetpackcamera.utils.runScenarioTestForResult
+import com.google.jetpackcamera.utils.tapStartLockedVideoRecording
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,7 +62,7 @@ internal class VideoRecordingDeviceTest {
     private val uiDevice = UiDevice.getInstance(instrumentation)
 
     @Test
-    fun video_capture(): Unit = runMediaStoreAutoDeleteScenarioTest<MainActivity>(
+    fun pressed_video_capture(): Unit = runMainActivityMediaStoreAutoDeleteScenarioTest(
         mediaUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
     ) {
         val timeStamp = System.currentTimeMillis()
@@ -72,12 +74,37 @@ internal class VideoRecordingDeviceTest {
         composeTestRule.waitUntil(timeoutMillis = VIDEO_CAPTURE_TIMEOUT_MILLIS) {
             composeTestRule.onNodeWithTag(VIDEO_CAPTURE_SUCCESS_TAG).isDisplayed()
         }
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
     }
 
     @Test
-    fun video_capture_external_intent() {
+    fun drag_to_lock_pressed_video_capture(): Unit =
+        runMainActivityMediaStoreAutoDeleteScenarioTest(
+            mediaUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        ) {
+            val timeStamp = System.currentTimeMillis()
+            // Wait for the capture button to be displayed
+            composeTestRule.waitUntil(timeoutMillis = APP_START_TIMEOUT_MILLIS) {
+                composeTestRule.onNodeWithTag(CAPTURE_BUTTON).isDisplayed()
+            }
+            composeTestRule.pressAndDragToLockVideoRecording()
+
+            // stop recording
+            // fixme: this shouldnt need two clicks
+            composeTestRule.onNodeWithTag(CAPTURE_BUTTON).assertExists().performClick()
+            composeTestRule.onNodeWithTag(CAPTURE_BUTTON).assertExists().performClick()
+
+            composeTestRule.waitUntil(timeoutMillis = VIDEO_CAPTURE_TIMEOUT_MILLIS) {
+                composeTestRule.onNodeWithTag(VIDEO_CAPTURE_SUCCESS_TAG).isDisplayed()
+            }
+
+            deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
+        }
+
+    @Test
+    fun pressed_video_capture_external_intent() {
         val timeStamp = System.currentTimeMillis()
-        val uri = getTestUri(DIR_PATH, timeStamp, "mp4")
+        val uri = getTestUri(MOVIES_DIR_PATH, timeStamp, "mp4")
         val result =
             runScenarioTestForResult<MainActivity>(
                 getSingleImageCaptureIntent(uri, MediaStore.ACTION_VIDEO_CAPTURE)
@@ -89,8 +116,32 @@ internal class VideoRecordingDeviceTest {
                 composeTestRule.longClickForVideoRecording()
             }
         Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
-        Truth.assertThat(doesImageFileExist(uri, "video")).isTrue()
-        deleteFilesInDirAfterTimestamp(DIR_PATH, instrumentation, timeStamp)
+        Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isTrue()
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
+    }
+
+    @Test
+    fun tap_video_capture_external_intent() {
+        val timeStamp = System.currentTimeMillis()
+        val uri = getTestUri(MOVIES_DIR_PATH, timeStamp, "mp4")
+        val result =
+            runScenarioTestForResult<MainActivity>(
+                getSingleImageCaptureIntent(uri, MediaStore.ACTION_VIDEO_CAPTURE)
+            ) {
+                // Wait for the capture button to be displayed
+                composeTestRule.waitUntil(timeoutMillis = APP_START_TIMEOUT_MILLIS) {
+                    composeTestRule.onNodeWithTag(CAPTURE_BUTTON).isDisplayed()
+                }
+                // start recording
+                composeTestRule.tapStartLockedVideoRecording()
+
+                // stop recording
+                composeTestRule.onNodeWithTag(CAPTURE_BUTTON).assertExists().performClick()
+            }
+        Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
+        Truth.assertThat(doesMediaExist(uri, IMAGE_PREFIX)).isFalse()
+        Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isTrue()
+        deleteFilesInDirAfterTimestamp(MOVIES_DIR_PATH, instrumentation, timeStamp)
     }
 
     @Test
@@ -111,38 +162,6 @@ internal class VideoRecordingDeviceTest {
                 uiDevice.pressBack()
             }
         Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
-        Truth.assertThat(doesImageFileExist(uri, "video")).isFalse()
-    }
-
-    @Test
-    fun image_capture_during_video_capture_external() {
-        val timeStamp = System.currentTimeMillis()
-        val uri = getTestUri(ImageCaptureDeviceTest.DIR_PATH, timeStamp, "mp4")
-        val result =
-            runScenarioTestForResult<MainActivity>(
-                getSingleImageCaptureIntent(uri, MediaStore.ACTION_VIDEO_CAPTURE)
-            ) {
-                // Wait for the capture button to be displayed
-                composeTestRule.waitUntil(timeoutMillis = APP_START_TIMEOUT_MILLIS) {
-                    composeTestRule.onNodeWithTag(CAPTURE_BUTTON).isDisplayed()
-                }
-
-                composeTestRule.onNodeWithTag(CAPTURE_BUTTON)
-                    .assertExists()
-                    .performClick()
-                composeTestRule.waitUntil(timeoutMillis = IMAGE_CAPTURE_TIMEOUT_MILLIS) {
-                    composeTestRule.onNodeWithTag(
-                        IMAGE_CAPTURE_EXTERNAL_UNSUPPORTED_TAG
-                    ).isDisplayed()
-                }
-                uiDevice.pressBack()
-            }
-        Truth.assertThat(result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
-        Truth.assertThat(doesImageFileExist(uri, "image")).isFalse()
-    }
-
-    companion object {
-        val DIR_PATH: String =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
+        Truth.assertThat(doesMediaExist(uri, VIDEO_PREFIX)).isFalse()
     }
 }
