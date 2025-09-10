@@ -18,6 +18,7 @@ kotlinPlugin = "2.2.0"
 ksp ="2.2.0-2.0.2"
 androidGradlePlugin = "8.13.0"
 protobufPlugin = "0.9.5"
+
 composeMaterial = "1.4.0-alpha15"
 androidxActivityCompose = "1.10.1"
 androidxAppCompat = "1.7.1"
