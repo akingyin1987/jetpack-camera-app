@@ -27,6 +27,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
@@ -70,6 +71,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 private const val TAG = "MainActivity"
 
@@ -83,6 +85,7 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.M)
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         var uiState: MainActivityUiState by mutableStateOf(Loading)
 
@@ -211,7 +214,7 @@ class MainActivity : ComponentActivity() {
         } else {
             val result = mutableListOf<Uri>()
             for (string in stringUris) {
-                result.add(Uri.parse(string))
+                result.add(string.toUri())
             }
             return result
         }

@@ -42,12 +42,47 @@ import com.google.jetpackcamera.model.VideoQuality
  *                              corresponding value is a [CameraConstraints] object
  *                              detailing the specific capabilities and limitations of that lens.
  */
+
+/**
+ * 表示设备上相机系统的整体约束和功能。
+ *
+ * 这个数据类聚合了有关可用镜头、并发相机使用支持以及每个单独相机镜头的详细约束信息。
+ * 它作为查询设备相机硬件和软件堆栈支持的功能和设置的中心点。
+ *
+ * @property availableLenses [com.google.jetpackcamera.model.LensFacing] 值列表，指示设备上可用的相机镜头（例如前置、后置相机）
+ * @property concurrentCamerasSupported 布尔值，指示设备是否支持同时操作多个相机
+ * @property perLensConstraints Map集合，其中每个键是 [com.google.jetpackcamera.model.LensFacing] 值，
+ *                              对应的值是一个 [CameraConstraints] 对象，详细说明该镜头的功能和限制
+ */
 data class CameraSystemConstraints(
+    /**
+     * 设备上可用的相机镜头列表
+     * 通常包括前置和后置摄像头（如果可用）
+     * @see LensFacing
+     */
     val availableLenses: List<LensFacing> = emptyList(),
+    /**
+     * 指示设备是否支持同时使用多个摄像头
+     * 当为true时，应用程序可以同时打开和使用多个相机镜头
+     */
     val concurrentCamerasSupported: Boolean = false,
+
+    /**
+     * 每个可用镜头的约束映射
+     * 每个条目都包含有关特定镜头朝向的详细功能信息
+     * @see CameraConstraints
+     */
     val perLensConstraints: Map<LensFacing, CameraConstraints> = emptyMap()
 )
 
+
+/**
+ * 根据指定的选择器函数从所有镜头约束中提取并合并特定类型的数据
+ *
+ * @param T 要提取的数据类型
+ * @param constraintSelector 从CameraConstraints中选择特定数据的函数
+ * @return 包含所有镜头中指定类型数据的集合
+ */
 inline fun <reified T> CameraSystemConstraints.forDevice(
     crossinline constraintSelector: (CameraConstraints) -> Iterable<T>
 ) = perLensConstraints.values.asSequence().flatMap { constraintSelector(it) }.toSet()
@@ -86,16 +121,77 @@ inline fun <reified T> CameraSystemConstraints.forDevice(
  *                                          is active. This helps in understanding combinations
  *                                          that are disallowed.
  */
+
+/**
+ * 定义单个相机镜头的特定功能、限制和支持的设置。
+ *
+ * 这个数据类封装了与特定相机相关的各种约束，如支持的稳定模式、帧率、动态范围、
+ * 图像格式和变焦功能等。
+ *
+ * @property supportedStabilizationModes 该相机镜头支持的 [com.google.jetpackcamera.model.StabilizationMode] 值集合
+ * @property supportedFixedFrameRates 视频录制时该镜头支持的固定帧率(FPS)整数集合
+ * @property supportedDynamicRanges 该相机镜头可以捕获的 [com.google.jetpackcamera.model.DynamicRange] 值集合（例如SDR、HDR10）
+ * @property supportedVideoQualitiesMap Map集合，键为 [com.google.jetpackcamera.model.DynamicRange] 值，值为该动态范围支持的 [VideoQuality] 设置列表
+ * @property supportedImageFormatsMap Map集合，键为 [com.google.jetpackcamera.model.StreamConfig] 值（表示单流或多流配置），值为该流配置支持的 [ImageOutputFormat] 集合
+ * @property supportedIlluminants 该相机支持的 [com.google.jetpackcamera.model.Illuminant] 值集合，通常表示可用的闪光灯类型（例如FLASH_UNIT）
+ * @property supportedFlashModes 可与此相机镜头一起使用的 [com.google.jetpackcamera.model.FlashMode] 值集合（例如OFF、ON、AUTO）
+ * @property supportedZoomRange 可选的浮点数 [Range]，表示该镜头支持的最小和最大变焦比率，如果不支持变焦或范围不可用则为null
+ * @property unsupportedStabilizationFpsMap Map集合，键为 [com.google.jetpackcamera.model.StabilizationMode] 值，值为当该特定稳定模式激活时不支持的帧率(FPS)集合
+ * @property supportedTestPatterns 该相机支持的测试图案集合
+ */
 data class CameraConstraints(
+    /**
+     * 支持的图像稳定模式集合
+     */
     val supportedStabilizationModes: Set<StabilizationMode>,
+
+    /**
+     * 支持的固定帧率集合
+     * 可能包括 [FPS_AUTO]、[FPS_15]、[FPS_30]、[FPS_60] 等值
+     */
     val supportedFixedFrameRates: Set<Int>,
+    /**
+     * 支持的动态范围集合
+     * 例如SDR、HDR10等
+     */
     val supportedDynamicRanges: Set<DynamicRange>,
+
+    /**
+     * 支持的视频质量映射
+     * 键为动态范围，值为该动态范围支持的视频质量列表
+     */
     val supportedVideoQualitiesMap: Map<DynamicRange, List<VideoQuality>>,
+
+    /**
+     * 支持的图像格式映射
+     * 键为流配置（单流或多流），值为该配置支持的图像输出格式集合
+     */
     val supportedImageFormatsMap: Map<StreamConfig, Set<ImageOutputFormat>>,
+
+    /**
+     * 支持的光源类型集合
+     */
     val supportedIlluminants: Set<Illuminant>,
+
+    /**
+     * 支持的闪光灯模式集合
+     */
     val supportedFlashModes: Set<FlashMode>,
+
+    /**
+     * 支持的变焦范围
+     * 一个浮点数范围，表示最小和最大变焦比率，如果变焦不受支持则为null
+     */
     val supportedZoomRange: Range<Float>?,
+    /**
+     * 不支持的稳定帧率映射
+     * 键为稳定模式，值为该稳定模式下不支持的帧率集合
+     */
     val unsupportedStabilizationFpsMap: Map<StabilizationMode, Set<Int>>,
+
+    /**
+     * 支持的测试图案集合
+     */
     val supportedTestPatterns: Set<TestPattern>
 ) {
     val StabilizationMode.unsupportedFpsSet
@@ -111,6 +207,10 @@ data class CameraConstraints(
 
 /**
  * Useful set of constraints for testing
+ */
+
+/**
+ * 用于测试的典型系统约束集合
  */
 val TYPICAL_SYSTEM_CONSTRAINTS =
     CameraSystemConstraints(

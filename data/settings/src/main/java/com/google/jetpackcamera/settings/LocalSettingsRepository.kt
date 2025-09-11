@@ -29,17 +29,15 @@ import com.google.jetpackcamera.model.StabilizationMode
 import com.google.jetpackcamera.model.StreamConfig
 import com.google.jetpackcamera.model.VideoQuality
 import com.google.jetpackcamera.model.VideoQuality.Companion.toProto
+import com.google.jetpackcamera.settings.model.CameraAppSettings
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 import com.google.jetpackcamera.model.proto.AspectRatio as AspectRatioProto
 import com.google.jetpackcamera.model.proto.DarkMode as DarkModeProto
 import com.google.jetpackcamera.model.proto.FlashMode as FlashModeProto
 import com.google.jetpackcamera.model.proto.StabilizationMode as StabilizationModeProto
 import com.google.jetpackcamera.model.proto.StreamConfig as StreamConfigProto
-import com.google.jetpackcamera.settings.model.CameraAppSettings
-import kotlinx.coroutines.flow.collectLatest
-import javax.inject.Inject
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.observeOn
 
 /**
  * Implementation of [SettingsRepository] with locally stored settings.

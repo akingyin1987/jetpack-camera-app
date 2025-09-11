@@ -72,7 +72,7 @@ class SettingsViewModel @Inject constructor(
             constraintsRepository.systemConstraints.filterNotNull(),
             grantedPermissions
         ) { updatedSettings, constraints, grantedPerms ->
-            updatedSettings.videoQuality
+
             SettingsUiState.Enabled(
                 aspectRatioUiState = AspectRatioUiState.Enabled(updatedSettings.aspectRatio),
                 streamConfigUiState = StreamConfigUiState.Enabled(updatedSettings.streamConfig),
