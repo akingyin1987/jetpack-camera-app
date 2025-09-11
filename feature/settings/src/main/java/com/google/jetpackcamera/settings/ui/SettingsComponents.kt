@@ -114,6 +114,7 @@ fun SettingsPageHeader(
                 modifier = Modifier.testTag(BACK_BUTTON),
                 onClick = { navBack() }
             ) {
+
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     stringResource(id = R.string.nav_back_accessibility)

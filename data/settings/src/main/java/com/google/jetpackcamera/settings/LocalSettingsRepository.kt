@@ -35,15 +35,18 @@ import com.google.jetpackcamera.model.proto.FlashMode as FlashModeProto
 import com.google.jetpackcamera.model.proto.StabilizationMode as StabilizationModeProto
 import com.google.jetpackcamera.model.proto.StreamConfig as StreamConfigProto
 import com.google.jetpackcamera.settings.model.CameraAppSettings
+import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.observeOn
 
 /**
  * Implementation of [SettingsRepository] with locally stored settings.
  */
-class LocalSettingsRepository @Inject constructor(private val jcaSettings: DataStore<JcaSettings>) :
-    SettingsRepository {
+class LocalSettingsRepository @Inject constructor(
+    private val jcaSettings: DataStore<JcaSettings>
+) : SettingsRepository {
 
     override val defaultCameraAppSettings = jcaSettings.data
         .map {

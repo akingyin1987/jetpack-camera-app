@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.Companion.OptimizeNonSkippingGroups
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 /*
  * Copyright (C) 2023 The Android Open Source Project
  *
@@ -49,14 +52,23 @@ android {
     }
     kotlin {
         jvmToolchain(17)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.add("-Xcontext-receivers")
+        }
     }
     buildFeatures {
         buildConfig = true
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+    composeCompiler{
+        includeSourceInformation = true
+        featureFlags = setOf(
+
+            OptimizeNonSkippingGroups.disabled(),
+        )
     }
+
 
     @Suppress("UnstableApiUsage")
     testOptions {
@@ -79,12 +91,26 @@ android {
         }
     }
 
-    kotlinOptions {
-        freeCompilerArgs += "-Xcontext-receivers"
-    }
+
+
+
 }
 
 dependencies {
+
+    // Project dependencies
+    implementation(project(":core:camera"))
+    implementation(project(":core:common"))
+    implementation(project(":data:media"))
+    implementation(project(":data:settings"))
+    implementation(project(":core:model"))
+    testImplementation(project(":core:common"))
+    implementation(project(":ui:components:capture"))
+    implementation(project(":ui:uistate"))
+    implementation(project(":ui:uistate:capture"))
+    implementation(project(":ui:uistateadapter:capture"))
+
+
     // Accompanist - Permissions
     implementation(libs.accompanist.permissions)
 

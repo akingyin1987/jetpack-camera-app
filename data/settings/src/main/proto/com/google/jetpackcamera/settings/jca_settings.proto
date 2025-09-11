@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+//版本V3
 syntax = "proto3";
 
+// ... 其他导入的proto文件
 import "com/google/jetpackcamera/model/proto/aspect_ratio.proto";
 import "com/google/jetpackcamera/model/proto/capture_mode.proto";
 import "com/google/jetpackcamera/model/proto/dark_mode.proto";
@@ -26,10 +28,28 @@ import "com/google/jetpackcamera/model/proto/lens_facing.proto";
 import "com/google/jetpackcamera/model/proto/stabilization_mode.proto";
 import "com/google/jetpackcamera/model/proto/video_quality.proto";
 
-
+// 生成java 代码的包名
 option java_package = "com.google.jetpackcamera.settings";
+// 允许生成多个java 文件，每个消息一个文件
+//    当 java_multiple_files = true 时：
+//    每个在 .proto 文件中定义的消息类型（message）和枚举类型（enum）都会生成一个单独的 Java 文件
+//    如果有外部类（outer class），它会生成一个单独的文件，而消息和枚举类型会在各自的文件中
+//    当 java_multiple_files = false 或未设置时：
+//    所有消息类型和枚举类型都会作为内部类生成在外部类（outer class）中
+//只会生成一个 Java 文件，包含了所有的类定义
 option java_multiple_files = true;
 
+//，message 是定义数据结构的核心关键字。它类似于面向对象编程语言中的类（class）或结构体（struct）概念
+
+//[field_type] [field_name] = [field_number];
+
+//field_type: 字段类型，可以是基本类型（如 int32、bool、string）或自定义的枚举/消息类型
+//field_name: 字段名称
+//field_number: 字段编号，用于在二进制格式中标识字段，必须唯一且为正整数
+
+//不要更改现有字段的编号：这会破坏向后兼容性
+//删除字段时不要重用编号：以防旧数据被错误解析
+//编号范围限制：编号必须是 1 到 2^29-1 之间的正整数，但 19000 到 19999 是保留的，
 message JcaSettings {
   // Camera settings
   LensFacing default_lens_facing = 1;

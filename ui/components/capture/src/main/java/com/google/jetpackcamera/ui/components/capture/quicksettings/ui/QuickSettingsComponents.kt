@@ -53,7 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -295,7 +295,6 @@ fun QuickSetRatio(
                 AspectRatio.THREE_FOUR -> CameraAspectRatio.THREE_FOUR
                 AspectRatio.NINE_SIXTEEN -> CameraAspectRatio.NINE_SIXTEEN
                 AspectRatio.ONE_ONE -> CameraAspectRatio.ONE_ONE
-                else -> CameraAspectRatio.ONE_ONE
             }
         QuickSettingToggleButton(
             modifier = modifier,
@@ -538,7 +537,7 @@ fun ExpandedQuickSetting(
             quickSettingButtons.size,
             (
                 (
-                    LocalConfiguration.current.screenWidthDp.dp - (
+                        LocalWindowInfo.current.containerSize.width.dp - (
                         dimensionResource(
                             id = R.dimen.quick_settings_ui_horizontal_padding
                         ) * 2
@@ -575,12 +574,13 @@ fun QuickSettingsGrid(
     modifier: Modifier = Modifier,
     quickSettingsButtons: List<@Composable () -> Unit>
 ) {
+    LocalWindowInfo.current.containerSize.width.dp
     val initialNumOfColumns =
         min(
             quickSettingsButtons.size,
             (
                 (
-                    LocalConfiguration.current.screenWidthDp.dp - (
+                        LocalWindowInfo.current.containerSize.width.dp - (
                         dimensionResource(
                             id = R.dimen.quick_settings_ui_horizontal_padding
                         ) * 2

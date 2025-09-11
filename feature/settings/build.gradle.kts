@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.Companion.OptimizeNonSkippingGroups
+
 /*
  * Copyright (C) 2023 The Android Open Source Project
  *
@@ -54,8 +56,12 @@ android {
         buildConfig = true
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+
+    composeCompiler{
+        includeSourceInformation = true
+        featureFlags = setOf(
+            OptimizeNonSkippingGroups.disabled(),
+        )
     }
 
     @Suppress("UnstableApiUsage")
@@ -85,7 +91,7 @@ dependencies {
 
     // Compose - Material Design 3
     implementation(libs.compose.material3)
-
+    implementation(libs.compose.material.icons.extended)
     // Compose - Android Studio Preview support
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
