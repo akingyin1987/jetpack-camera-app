@@ -98,9 +98,7 @@ const val UNLIMITED_VIDEO_DURATION = 0L
  * CameraX based implementation for [CameraSystem]
  */
 @ViewModelScoped
-class CameraXCameraSystem
-@Inject
-constructor(
+class CameraXCameraSystem @Inject constructor(
     private val application: Application,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @param:IODispatcher private val iODispatcher: CoroutineDispatcher,

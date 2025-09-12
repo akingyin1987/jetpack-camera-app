@@ -33,6 +33,7 @@ import com.google.jetpackcamera.ui.uistate.capture.ZoomControlUiState
 import com.google.jetpackcamera.ui.uistate.capture.ZoomUiState
 
 /**
+ * 相片和视频捕获的UI状态
  * Defines the current UI state for the camera capture screen.
  * This state object encapsulates various sub-states related to camera controls,
  * settings, and display elements, providing a comprehensive view of the UI.

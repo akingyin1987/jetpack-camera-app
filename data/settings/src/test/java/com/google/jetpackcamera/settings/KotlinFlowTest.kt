@@ -13,23 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.jetpackcamera.ui.uistate.capture
+
+package com.google.jetpackcamera.settings
+
+import org.junit.Test
 
 /**
- * 闪光灯UI 状态
  *
- * @property enabled
- * @property onChangeComplete
- * @property screenBrightnessToRestore
+ * @author: aking <a href="mailto:akingyin@163.com">Contact me.</a>
+ * @since: 2025/9/12 15:40
+ * @version: 1.0
  */
-data class ScreenFlashUiState(
-    // 闪光灯是否启用
-    val enabled: Boolean = false,
-    // 闪光灯状态改变后的回调
-    val onChangeComplete: () -> Unit = {},
-    // restored during CLEAR_UI event
-    //用于在 CLEAR_UI 事件期间恢复屏幕亮度
-    val screenBrightnessToRestore: Float? = null
-) {
-    companion object
+class KotlinFlowTest {
+
+    @Test
+    fun testScan(){
+        val data = listOf(1,2,3)
+        data.scan("1"){ acc, value -> acc + value
+        }.forEach(::println)
+    }
+
+
 }

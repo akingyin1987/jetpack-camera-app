@@ -348,9 +348,11 @@ class PreviewViewModel @AssistedInject constructor(
         is ExternalCaptureMode.StandardMode -> CaptureMode.STANDARD
     }
 
+
     /**
      * Applies an individual camera app setting with the given [settingExtractor] and
      * [settingApplicator] if the new setting differs from the old setting.
+     *  比较旧值与新值，不一致则 使用新值
      */
     private suspend inline fun <R> CameraAppSettings.applyDiff(
         new: CameraAppSettings,

@@ -28,12 +28,14 @@ data class CameraZoomRatio(val changeType: ZoomStrategy)
 enum class LensToZoom {
 
     /**
+     * 单摄像头会话中的"当前"[LensFacing]或并发会话中的主[LensFacing]
      * An abstract placeholder for the "Current" [LensFacing] in a single camera session,
      * or the Primary `LensFacing` in a concurrent session.
      */
     PRIMARY,
 
     /**
+     * 单摄像头会话中的"非活动"[LensFacing]或并发会话中的次级
      * An abstract placeholder for the "Inactive" [LensFacing] in a single camera session,
      * or the `Secondary LensFacing` in a concurrent session.
      *

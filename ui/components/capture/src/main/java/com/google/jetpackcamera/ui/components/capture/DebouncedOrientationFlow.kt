@@ -32,8 +32,10 @@ import kotlinx.coroutines.flow.runningFold
 private const val ORIENTATION_HYSTERESIS = 5
 
 fun debouncedOrientationFlow(context: Context) = callbackFlow {
+
     val orientationListener = object : OrientationEventListener(context) {
         override fun onOrientationChanged(orientation: Int) {
+            //获取当前设备改变的方向
             trySend(orientation)
         }
     }
@@ -43,7 +45,9 @@ fun debouncedOrientationFlow(context: Context) = callbackFlow {
     awaitClose {
         orientationListener.disable()
     }
+    //这是防抖动处理的核心逻辑，使用 CONFLATED 缓冲策略，只保留最新的值
 }.buffer(capacity = CONFLATED)
+    //runningFold - 累积计算，将角度转换为 DeviceRotation 枚举：
     .runningFold(initial = DeviceRotation.Natural) { prevSnap, newDegrees ->
         if (
             newDegrees != ORIENTATION_UNKNOWN &&

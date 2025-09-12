@@ -43,12 +43,14 @@ class ScreenFlash(
             for (event in cameraSystem.getScreenFlashEvents()) {
                 _screenFlashUiState.emit(
                     when (event.type) {
+                        //启用屏幕闪光
                         CameraSystem.ScreenFlashEvent.Type.APPLY_UI ->
                             screenFlashUiState.value.copy(
                                 enabled = true,
                                 onChangeComplete = event.onComplete
                             )
 
+                        //禁用屏幕闪光
                         CameraSystem.ScreenFlashEvent.Type.CLEAR_UI ->
                             screenFlashUiState.value.copy(
                                 enabled = false,

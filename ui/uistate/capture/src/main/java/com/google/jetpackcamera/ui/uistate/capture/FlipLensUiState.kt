@@ -18,9 +18,29 @@ package com.google.jetpackcamera.ui.uistate.capture
 import com.google.jetpackcamera.model.LensFacing
 import com.google.jetpackcamera.ui.uistate.SingleSelectableUiState
 
+
+/**
+ * 用于表示翻转镜头（切换前后摄像头）功能的UI状态
+ *
+ */
 sealed interface FlipLensUiState {
+
+    /**
+     * 不可用状态
+     *
+     * 表示翻转镜头功能当前不可用
+     */
     data object Unavailable : FlipLensUiState
 
+
+    /**
+     * 可用状态
+     *
+     * 表示翻转镜头功能当前可用
+     *
+     * @param selectedLensFacing 当前选中的镜头朝向
+     * @param availableLensFacings 可用的镜头朝向列表
+     */
     data class Available(
         val selectedLensFacing: LensFacing,
         val availableLensFacings: List<SingleSelectableUiState<LensFacing>>

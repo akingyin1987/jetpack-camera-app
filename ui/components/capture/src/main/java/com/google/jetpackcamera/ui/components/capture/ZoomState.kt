@@ -26,6 +26,18 @@ import com.google.jetpackcamera.model.CameraZoomRatio
 import com.google.jetpackcamera.model.LensToZoom
 import com.google.jetpackcamera.model.ZoomStrategy
 
+
+/**
+ *
+ *缩放状态管理类
+ * @property onChangeZoomLevel 缩放级别变化时的回调函数
+ * @property onAnimateStateChanged 动画状态变化时的回调函数
+ * @constructor
+ *
+ *
+ * @param initialZoomLevel 初始缩放级别
+ * @param zoomRange 缩放范围
+ */
 class ZoomState(
     initialZoomLevel: Float,
     zoomRange: Range<Float>,
@@ -33,15 +45,24 @@ class ZoomState(
     val onAnimateStateChanged: (Float?) -> Unit
 ) {
     init {
+        // // 初始化时通知动画状态变化，传入null表示没有动画
         onAnimateStateChanged(null)
     }
+
 
     private var functionalZoom = initialZoomLevel
 
     private var functionalZoomRange = zoomRange
 
+    // 用于确保缩放操作的互斥性
     private val mutatorMutex = MutatorMutex()
 
+
+    /**
+     * 执行缩放操作的包装函数
+     *
+     * @param block 要执行的缩放操作
+     */
     private suspend fun mutateZoom(block: suspend () -> Unit) {
         mutatorMutex.mutate {
             onAnimateStateChanged(null)
@@ -50,6 +71,7 @@ class ZoomState(
     }
 
     /**
+     * 立即设置当前缩放级别到目标缩放级别
      * Immediately set the current zoom level to [targetZoomLevel].
      */
     suspend fun absoluteZoom(targetZoomLevel: Float, lensToZoom: LensToZoom) {
