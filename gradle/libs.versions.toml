@@ -1,6 +1,7 @@
 [versions]
 # Used directly in build.gradle.kts files
 compileSdk = "36"
+gson = "2.13.2"
 orchestrator = "1.5.1"
 minSdk = "21"
 targetSdk = "36"
@@ -86,6 +87,7 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 dagger-hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 dagger-hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 futures-ktx = { module = "androidx.concurrent:concurrent-futures-ktx", version.ref = "androidxConcurrentFutures" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "androidxHiltNavigationCompose" }
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinxAtomicfu" }

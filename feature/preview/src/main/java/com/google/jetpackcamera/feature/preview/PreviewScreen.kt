@@ -159,6 +159,7 @@ fun PreviewScreen(
     when (val currentUiState = captureUiState) {
         is CaptureUiState.NotReady -> LoadingScreen()
         is CaptureUiState.Ready -> {
+            //初始化录制视频设置
             var initialRecordingSettings by remember {
                 mutableStateOf<InitialRecordingSettings?>(
                     null
@@ -170,6 +171,8 @@ fun PreviewScreen(
                 debouncedOrientationFlow(context).collect(viewModel::setDisplayRotation)
             }
             val scope = rememberCoroutineScope()
+
+            //绽放处理状态
             val zoomState = remember {
                 // the initialZoomLevel must be fetched from the settings, not the cameraState.
                 // since we want to reset the ZoomState on flip, the zoomstate of the cameraState may not yet be congruent with the settings

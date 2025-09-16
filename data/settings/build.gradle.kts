@@ -79,7 +79,8 @@ dependencies {
     // proto datastore
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.kotlin.lite)
-
+    implementation("io.konform:konform:0.11.0")
+    implementation(libs.gson)
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.truth)

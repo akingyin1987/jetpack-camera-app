@@ -122,6 +122,7 @@ class ZoomState(
                 animationSpec = animationSpec
             ) {
                 // this is called every animation frame
+                //设备当前缩放级别 不可超过范围
                 functionalZoom = value.coerceIn(functionalZoomRange.toClosedRange())
                 onChangeZoomLevel(
                     CameraZoomRatio(

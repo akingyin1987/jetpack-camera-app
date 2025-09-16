@@ -48,15 +48,16 @@ android {
     }
     kotlin {
         jvmToolchain(17)
+        compilerOptions {
+            freeCompilerArgs.add("-Xcontext-receivers")
+        }
     }
     buildFeatures {
         buildConfig = true
         compose = true
     }
 
-    kotlinOptions {
-        freeCompilerArgs += "-Xcontext-receivers"
-    }
+
 }
 
 dependencies {

@@ -23,7 +23,7 @@ plugins {
 
 android {
     namespace = "com.google.jetpackcamera.feature.postcapture"
-    compileSdk = 35
+    compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
@@ -48,6 +48,9 @@ android {
     }
     kotlin {
         jvmToolchain(17)
+        compilerOptions {
+            freeCompilerArgs.add("-Xcontext-receivers")
+        }
     }
     buildFeatures {
         buildConfig = true
@@ -75,9 +78,7 @@ android {
         }
     }
 
-    kotlinOptions {
-        freeCompilerArgs += "-Xcontext-receivers"
-    }
+
 }
 
 dependencies {

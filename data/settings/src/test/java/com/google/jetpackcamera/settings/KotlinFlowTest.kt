@@ -16,6 +16,7 @@
 
 package com.google.jetpackcamera.settings
 
+
 import org.junit.Test
 
 /**
@@ -25,6 +26,8 @@ import org.junit.Test
  * @version: 1.0
  */
 class KotlinFlowTest {
+
+
 
     @Test
     fun testScan(){
