@@ -15,57 +15,32 @@
  */
 package com.google.jetpackcamera.model
 
-import android.net.Uri
-
 /**
  * This interface is determined before the Preview UI is launched and passed into PreviewScreen. The
  * UX differs depends on which mode the Preview is launched under.
  */
-sealed interface ExternalCaptureMode {
+enum class ExternalCaptureMode {
     /**
      * The default mode for the app.
      * 默认模式，
      */
-    data class StandardMode(
-        val onImageCapture: (ImageCaptureEvent) -> Unit
-    ) : ExternalCaptureMode
+    Standard,
 
     /**
      * 外部图像捕获模式，外部视频捕获模式和外部多图像捕获模式的区别在于，它们都是在外部意图下启动的。
      * Under this mode, the app is launched by an external intent to capture one image.
      */
-    data class ExternalImageCaptureMode(
-        val imageCaptureUri: Uri?,
-        val onImageCapture: (ImageCaptureEvent) -> Unit
-    ) : ExternalCaptureMode
+    ImageCapture,
 
     /**
      * 外部视频捕获模式，
      * Under this mode, the app is launched by an external intent to capture a video.
      */
-    data class ExternalVideoCaptureMode(
-        val videoCaptureUri: Uri?,
-        val onVideoCapture: (VideoCaptureEvent) -> Unit
-    ) : ExternalCaptureMode
+    VideoCapture,
 
     /**
      * Under this mode, the app is launched by an external intent to capture multiple images.
      * 外部多图像捕获模式，在外部意图下启动以捕获多个图像。
      */
-    data class ExternalMultipleImageCaptureMode(
-        val imageCaptureUris: List<Uri>?,
-        val onImageCapture: (ImageCaptureEvent, Int) -> Unit
-    ) : ExternalCaptureMode
-
-    sealed interface ImageCaptureEvent {
-        data class ImageSaved(val savedUri: Uri? = null) : ImageCaptureEvent
-
-        data class ImageCaptureError(val exception: Exception) : ImageCaptureEvent
-    }
-
-    sealed interface VideoCaptureEvent {
-        data class VideoSaved(val savedUri: Uri) : VideoCaptureEvent
-
-        data class VideoCaptureError(val error: Throwable?) : VideoCaptureEvent
-    }
+    MultipleImageCapture
 }
